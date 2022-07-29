@@ -1,4 +1,199 @@
-﻿$shareoptionequivalencemap = @{
+﻿param (
+    [Parameter] [switch] $NewInstallation,
+    [Parameter] [switch] $ReConfigure
+)
+
+
+if (Test-Path -Path "$env:programfiles\Kirkwood Soft"){
+    $binairiesDir = "$env:programfiles\Kirkwood Soft"
+} elseif (Test-Path -Path "$env:appdata\Kirkwood Soft\binairies") {
+    $binairiesDir = "$env:appdata\Kirkwood Soft\binairies"
+}
+if ((Get-Content -Path "$binairiesDir\LANGUAGE.txt") -eq "FR"){
+    $langmap = $frlangmap
+    $lang = "FR"
+} elseif ((Get-Content -Path "$binairiesDir\LANGUAGE.txt") -eq "EN"){
+    $langmap = $enlangmap
+    $lang = "EN"
+}
+
+function creatingLoading {
+    param (
+        [Parameter(Mandatory = $true, Position = 0)] [string] $createType,
+        [Parameter(Mandatory = $true, Position = 0)] [string] $createpath,
+        [Parameter(Mandatory = $false, Position = 0)] [string] $createname,
+        [Parameter(Mandatory = $false, Position = 0)] [string] $shortcutDestPath,
+        [Parameter(Mandatory = $true, Position = 0)] [string] $lang
+    )
+
+    $enlangmap = @{
+        1 = "Creating"
+        2 = "Done !"
+        3 = "Failed"
+        4 = "already exists"
+        'directory' = "directory"
+        'shortcut' = "shortcut"
+        'file' = "file"
+    }
+
+    $frlangmap = @{
+        1 = "Creation"
+        2 = "Terminé !"
+        3 = "Erreur"
+        4 = "existe déjà"
+        "directory" = "répertoire"
+        "shortcut" = "raccourci"
+        "file" = "fichier"
+
+    }
+    
+    if ($lang -eq "FR"){
+        $langmap = $frlangmap
+    } elseif ($lang -eq "EN"){
+        $langmap = $enlangmap
+    }
+
+    $timesofpoint = 0
+    do {
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[.] $($langmap.1) $createType : $createpath ..."
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[ ] $($langmap.1) $createType : $createpath..."
+        $timesofpoint = $timesofpoint + 1
+    } until ($timesofpoint -eq 2)
+
+    if ($createType -eq "file"){
+        $pathtype = "Leaf"
+    } elseif ($createType -eq "directory"){
+        $pathtype = "Container"
+    } elseif ($createType -eq "shortcut") {
+        $pathtype = "Leaf"
+    }
+    $createExists = (Test-Path -Path $createpath -PathType $pathtype)
+    
+    if ($createExists -eq $false) {
+        if (($createType -eq "file") -or ($createType -eq "directory")){
+            $null = New-Item -Path "$createpath" -Value "$foldername" -ItemType "directory"
+            Write-Host "`r[✓] $($langmap.1) $($langmap["$createType"]) : $createpath... $($langmap.2)"
+        } elseif ($createType -eq "shortcut"){
+            $WScriptObj = New-Object -ComObject ("WScript.Shell")
+            $shortcut = $WscriptObj.CreateShortcut($createpath)
+            $shortcut.TargetPath = $shortcutDestPath
+            $shortcut.Save()
+        }
+    } else {
+        Write-Host "`r[✗] $($langmap.1) $($langmap["$createType"]) : $createpath... $($langmap.3) ($createType $($langmap.4))"
+    }
+}
+
+function dlGitHub {
+    param (
+        [Parameter(Mandatory = $true, Position = 0)] [string] $repo,
+        [Parameter(Mandatory = $true, Position = 0)] [string] $endLocation,
+        [Parameter(Mandatory = $true, Position = 0)] [string] $file,
+        [Parameter(Mandatory = $true, Position = 0)] [string] $lang
+    )
+    #language setup
+    $enlangmap = @{
+        1 = "Determining latest release"
+        2 = "Done !"
+        3 = "Downloading latest release"
+        4 = "Extracting archive (zip)"
+        5 = "Cleaning up"
+    }
+
+    $frlangmap = @{
+        1 = "Détermination de la dernière version"
+        2 = "Terminé !"
+        3 = "Téléchargement de la dernière version"
+        4 = "Extraction de l'archive (zip)"
+        5 = "Nettoyage"
+    }
+    
+    if ($lang -eq "FR"){
+        $langmap = $frlangmap
+    } elseif ($lang -eq "EN"){
+        $langmap = $enlangmap
+    }
+
+    #variable setup
+    $credentials="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"
+    $repo = "silloky/$repo"
+    $headers = @{
+        'Authorization' = "token $credentials"
+        'Accept' = 'application/vnd.github+json'
+    }
+    $releases = "https://api.github.com/repos/$repo/releases"
+
+    #determine latest release
+    $timesofpoint = 0
+    do {
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[.] $($langmap.1)..."
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[ ] $($langmap.1)..."
+        $timesofpoint = $timesofpoint + 1
+    } until ($timesofpoint -eq 2)
+    $id = ((Invoke-WebRequest $releases -Headers $headers | ConvertFrom-Json)[0].assets | Where-Object { $_.name -eq $file })[0].id
+    $versionCode = (Invoke-WebRequest $releases -Headers $headers | ConvertFrom-Json)[0].tag_name
+    Write-Host "`r[✓] $($langmap.1)... $($langmap.2) ($versionCode)"
+
+    #download
+    $timesofpoint = 0
+    do {
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[.] $($langmap.3)..."
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[ ] $($langmap.3)..."
+        $timesofpoint = $timesofpoint + 1
+    } until ($timesofpoint -eq 2)
+    $headers = @{
+        'Authorization' = "token $credentials"
+        'Accept' = 'application/octet-stream'
+    }
+    $downloadPath = $([System.IO.Path]::GetTempPath()) + "$file"
+    $download = "https://" + $credentials + ":@api.github.com/repos/$repo/releases/assets/$id"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "$download" -Headers $headers -OutFile $downloadPath
+    Write-Host "`r[✓] $($langmap.3)... $($langmap.2) ($versionCode)"
+
+
+    #extract archive or move file
+    if ($file.Contains(".zip")){
+        $timesofpoint = 0
+        do {
+            Start-Sleep -Milliseconds 400
+            Write-Host -NoNewline "`r[.] $($langmap.4)..."
+            Start-Sleep -Milliseconds 400
+            Write-Host -NoNewline "`r[ ] $($langmap.4)..."
+            $timesofpoint = $timesofpoint + 1
+        } until ($timesofpoint -eq 2)
+        Expand-Archive $downloadPath -DestinationPath $endLocation -Force
+        Write-Host "`r[✓] $($langmap.4)... $($langmap.2)"
+    } else {
+        Copy-Item -Path "$downloadPath" -Destination "$endLocation"
+    }
+    
+
+    #clean up TEMP
+    $timesofpoint = 0
+    do {
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[.] $($langmap.5)..."
+        Start-Sleep -Milliseconds 400
+        Write-Host -NoNewline "`r[ ] $($langmap.6)..."
+        $timesofpoint = $timesofpoint + 1
+    } until ($timesofpoint -eq 2)
+    Remove-Item "$downloadPath" -Force
+    Write-Host "`r[✓] $($langmap.6)... $($langmap.2)"
+
+    #format version number
+    $versionNumber = $versionCode.replace('v','')
+
+    $versionNumber
+}
+
+$shareoptionequivalencemap = @{
     '1' = 'partageseliasgerard'
     '2' = 'partagesmarianneautres'
     '3' = 'partageseliasjames'
@@ -26,57 +221,76 @@ $sharenameequivalencemap = @{
     'partagesmarianneautres' = "$shareORpartage Marianne-Autres"
 }
 
+$productEquivalenceMap = @{
+    '1' = 'SFTPmount'
+    '2' = 'VPN'
+    '3' = 'SBackup'
+    '4' = 'SDownload'
+}
+
+# Write-Output " ____                             ____             _             "
+# Write-Output "/ ___|  ___ _ ____   _____ _ __  |  _ \  ___ _ __ | | ___  _   _ "
+# Write-Output "\___ \ / _ \ '__\ \ / / _ \ '__| | | | |/ _ \ '_ \| |/ _ \| | | |"
+# Write-Output " ___) |  __/ |   \ V /  __/ |    | |_| |  __/ |_) | | (_) | |_| |"
+# Write-Output "|____/ \___|_|    \_/ \___|_|    |____/ \___| .__/|_|\___/ \__, |"
+# Write-Output "                                            |_|            |___/ "
 
 
-Write-Output " ____                             ____             _             "
-Write-Output "/ ___|  ___ _ ____   _____ _ __  |  _ \  ___ _ __ | | ___  _   _ "
-Write-Output "\___ \ / _ \ '__\ \ / / _ \ '__| | | | |/ _ \ '_ \| |/ _ \| | | |"
-Write-Output " ___) |  __/ |   \ V /  __/ |    | |_| |  __/ |_) | | (_) | |_| |"
-Write-Output "|____/ \___|_|    \_/ \___|_|    |____/ \___| .__/|_|\___/ \__, |"
-Write-Output "                                            |_|            |___/ "
 Write-Output " "
 Write-Output "================================================================="
-Write-Output "================================================================="
-
-
-
-#create necesary directories
-Write-Output "Setting up the directory structure :"
-$timesOfFolderCreate = 0
-do {
-    if ($timesOfFolderCreate -eq 0){
-        $folderpath = "D:\programs"
-        $foldername = "programs"
-    } elseif ($timesOfFolderCreate -eq 1){
-        $folderpath = "D:\programs\Server"
-        $foldername = "Server"
-    } elseif ($timesOfFolderCreate -eq 2){
-        $folderpath = "D:\programs\Server\submounts"
-        $foldername = "submounts"
-    }
-    $timesofpoint = 0
-    do {
-        Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[.] Creating directory : $folderpath..."
-        Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[ ] Creating directory : $folderpath..."
-        $timesofpoint = $timesofpoint + 1
-    } until ($timesofpoint -eq 2)
-    $folderexists = (Test-Path -Path $folderpath)
-    if ($folderexists -eq $false) {
-        $null = New-Item -Path "$folderpath" -Value "$foldername" -ItemType "directory"
-        Write-Host "`r[✓] Creating directory : $folderpath... Done !"
-    }
-    else {
-        Write-Host "`r[✗] Creating directory : $folderpath... Failed (directory already exists)"
-    }
-    $timesOfFolderCreate = $timesOfFolderCreate + 1
-} until (
-    $timesOfFolderCreate -eq 3
-)
-
+Write-Output "Welcome to ServerDeploy ! This tool will guide you into configuring your access to the GrigWood server."
+Write-Output "This device can serve many purposes : "
+Write-Output "  - storing data, including some automated backups"
+Write-Output "  - encrypting all your Internet connection "
+Write-Output "  - completely deleting ads from the pages you visit"
+Write-Output "  - Download big files off the Internet without heating up your computer"
+Write-Output "And many more..."
+Start-Sleep 15
+Write-Output " "
+Write-Output "So let's start !"
 Write-Output " "
 Write-Output "-----------------------------------------------------------------"
+Write-Output "Here are all the different components of this system :"
+Write-Output "    1. SFTPmount : Access the files on the server as if they were on a hard drive connected to your computer"
+Write-Output "    2. VPN : Encrypt your traffic so hackers can't snoop, get rid of ads on the Internet, and (optional) hide you IP adress"
+Write-Output "    3. SBackup : Backup folders you select to your dedicated space on the server ⚠️  NOT SUPPORTED YET"
+Write-Output "    4. SDownload : Download large files off the Internet ⚠️  NOT SUPPORTED YET"
+$serverInstallOptionsList = Read-Host "Please type in the numbers of the subproducts separated by spaces (and in order, please) "
+$serverInstallOptionsArray = $serverInstallOptionsList.Split(" ")
+
+if (($serverInstallOptionsArray.Contains("3")) -and (-not ($serverInstallOptionsArray.Contains("1")))){
+    Write-Output " "
+    Write-Output "[✗] You have selected option 3 (SBackup), but it requires option 1 (SFTPmount)."
+    if ((Read-Host "Shall we add SFTPmount to list ? [y | n] ") -eq "y"){
+        $serverInstallOptionsArray = $serverInstallOptionsArray + '1'
+        Write-Output "[✓] Added SFTPmount to list !"
+    } else {
+        if ((Read-Host "Are you sure ? [y | n] ") -eq "y"){
+            $time = 5
+            do {
+                Write-Host -NoNewline "`rExiting in $time seconds..."
+                $time = $time - 1
+                Start-Sleep 1
+            } until ($time -eq 0)
+            exit
+        }
+    }
+}
+
+foreach ($serverInstall_currentOption in $serverInstallOptionsArray){
+    Write-Output " "
+    Write-Output "-----------------------------------------------------------------"
+    Write-Output "$($productEquivalenceMap["$serverInstall_currentOption"]) setup :"
+    $currentFolder = "$binairiesDir\Kirkwood Soft\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])"
+    creatingLoading -createType "directory" -createpath "$currentFolder" -lang $lang -createname "$($productEquivalenceMap["$serverInstall_currentOption"])"
+    if ($serverInstall_currentOption -eq "1"){
+        creatingLoading -createType "directory" -createpath "$currentFolder"
+    }
+}
+
+
+
+
 Write-Output "Installing main code :"
 $timesofpoint = 0
 do {
