@@ -348,10 +348,10 @@ if ($NewInstallation -eq $true){
         Write-Output " "
         Write-Output "-----------------------------------------------------------------"
         Write-Output "      - $($productEquivalenceMap["$serverInstall_currentOption"]) setup :"
-        $currentFolder = "$binairiesDir\Kirkwood Soft\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])"
+        $currentFolder = "$binairiesDir\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])"
         creatingLoading -createType "directory" -createpath "$currentFolder" -lang $lang -createname "$($productEquivalenceMap["$serverInstall_currentOption"])"
         if ($serverInstall_currentOption -eq "1"){
-            $token = "76492d1116743f0423413b16050a5345MgB8AEUATgBJAHQASgBUAGgAMQBtAEoAOAAyAHYAYwBhAGIATQBGAE4AQQBDAHcAPQA9AHwNwAwADkAZQBiAGEAYwAwADkANgA5ADgAZgBiADMANABiADMANAA3AGIAMwA2ADgAMgBiADIAZQA5ADgANgBmADUANgAxADMAZAA2AGEAOABiAGUAYQA3ADUAMAA5AGMAMQBlAGYAZAA0ADYAOQA4AGQAYwA4ADEAMQA0ADIAYgA2AGQANABkAGIAOAAyAGYAMwA5ADQAYwA1ADMAZAAyADEANABiADUAZgAzAGYAZABiAGYAMwBkADcAYwBkADkANABlAGYANwA0ADkAOQA2ADAAYwAwADkAYgBjAGIAYgAxAGUAZgA2ADAAYgAzADgANQBlADIAOQAzAGYANgBlADAANQA2AGYANABkAGEANgA1ADAAOQA4ADYANQA5ADUAOAAyADIAMgBiADAANwA2ADkAZQA0ADIAOABhADEAOQA0AGMANAA0AGMAYQAyAGEAMABmADEANAA1ADMANQBkADAAYwA1ADQAMwBjADkANAAyADAAMQAwADQAMAAzADgA"
+            $token = "76492d1116743f0423413b16050a5345MgB8AFgAUQBqAE8AcgA0AEgAaQBpAEgAQQBjAHYAagBTAHIARgBNADAALwA2AFEAPQA9AHwAZQBjADUAYQA2AGIAYwA2AGUANwBjADEANQA5ADAAOAA1ADgAOABlADEAMAAxADUAOQA2AGEAZQA1AGQANQAwADcANABmAGYAZgA3ADQAZAA4AGIAMQAyADgAYwBlADYAZgA1ADMAYwBhADMAMgAyADAANgA2ADIANAA4AGQAMwA0ADcAZgAyAGQAYwBlADgAYQA3ADIAZQA0AGEAOQAxADYAMAA1ADQAMgA2AGMAZQBhAGYANwA5ADIANgBhADQAOQA0ADMAMgBhAGQANQA1AGUAMgBjADgAYQA1ADUANABmADkAYgA4ADIAMAAxAGYANABhADIAZgAyAGEAOQA4ADcAMwAzADUAZAA1ADkAYwAyADQAOABlADUAOABlAGIANwAwADAAZABlADcAYgBkADMAYwA4ADMAZgBjAGUAMgBjADQAMABkADIAYwA3ADUAMwBhADgAOQAyADIAMgAwAGQAYwA1AGEAMgAyADkAZQAzADAAOQBlADYAMABkADEA"
             $key = Read-Host "Please type in the security key given to you during the training "
             dlGitHub -repo "ServerDeploy" -file "mount.vbs" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
             creatingLoading -createType "directory" -createpath "$currentFolder\submounts" -lang $lang -createname "submounts"
