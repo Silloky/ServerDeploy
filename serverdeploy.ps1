@@ -177,10 +177,12 @@ function dlGitHub {
         Write-Host -NoNewline "`r[ ] $($langmap.3)..."
         $timesofpoint = $timesofpoint + 1
     } until ($timesofpoint -eq 2)
+    $credentials = Decrypt -EncryptedString "$token" -EncryptionKey $Key
     $headers = @{
         'Authorization' = "token $credentials"
         'Accept' = 'application/octet-stream'
     }
+    $credentials = $null
     $downloadPath = $([System.IO.Path]::GetTempPath()) + "$file"
     $download = "https://" + $credentials + ":@api.github.com/repos/$repo/releases/assets/$id"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
