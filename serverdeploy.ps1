@@ -357,24 +357,32 @@ if ($NewInstallation -eq $true){
             $key = Read-Host "Please type in the security key given to you during the training "
             dlGitHub -repo "ServerDeploy" -file "mount.vbs" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
             creatingLoading -createType "directory" -createpath "$currentFolder\submounts" -lang $lang -createname "submounts"
-            $timesofpoint = 0
+            $dlRclone = Start-Job -ScriptBlock {
+                param (
+                    $tempDir
+                )
+                curl.exe -o "$tempDir\rclone.zip" https://downloads.rclone.org/rclone-current-windows-amd64.zip
+                } -ArgumentList $tempDir
             do {
                 Start-Sleep -Milliseconds 400
                 Write-Host -NoNewline "`r[.] Downloading rclone..."
                 Start-Sleep -Milliseconds 400
-                Write-Host -NoNewline "`r[ ] $($langmap.3)..."
+                Write-Host -NoNewline "`r[ ] Downloading rclone..."
                 $timesofpoint = $timesofpoint + 1
-            } until ($timesofpoint -eq 2)
-            curl.exe -o "$tempDir\rclone.zip" -s https://downloads.rclone.org/rclone-current-windows-amd64.zip
+            } until ($dlRclone.State -eq "Completed")
             Expand-Archive -Path "$tempDir\rclone.zip" -DestinationPath "$tempDir\rclone" -Force
-            Copy-Item -Path "$tempDir\rclone\rclone.exe" -Destination "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -Force
+            $rcloneExe = Get-ChildItem -Path "$tempDir\rclone" -Filter "rclone.exe" -Recurse | ForEach-Object{$_.FullName}
+            Copy-Item -Path "$rcloneExe" -Destination "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -Force
+            Remove-Item -Path "$tempDir\rclone\*" -Recurse -Force
+            Remove-Item -Path "$tempDir\rclone.zip"
             Write-Host "`r[✓] Downloading rclone... Done !"
             creatingLoading -createType "directory" -createpath "$env:appdata\rclone" -createname "rclone" -lang "$lang"
             $username = Read-Host "Please enter your server username "
             $password = Read-Host "Please enter your server password "
             creatingLoading -createType "file" -createpath "$env:appdata\rclone\rclone.conf" -createname "rclone.conf" -lang "$lang"
-            Invoke-Expression -Command "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe config create test sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
-            Invoke-Expression -Command "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe config password sftp-nas pass `"$password`""
+            $escapedBinairiesDir = $binairiesDir.Replace(" ","` ")
+            Invoke-Expression -Command "$escapedBinairiesDir\ServerDeploy\SFTPmount\rclone.exe config create test sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
+            Invoke-Expression -Command "$escapedBinairiesDir\ServerDeploy\SFTPmount\rclone.exe config password sftp-nas pass `"$password`""
             Write-Output " "
             Write-Output "Folders selection :"
             Write-Output "  1. Shares"
@@ -392,7 +400,6 @@ if ($NewInstallation -eq $true){
                         $shareLocation = Read-Host "Please type in the place where you want the Shares folder to be located "
                     }
                     creatingLoading -createType "directory" -createpath "$shareLocation" -lang "$lang" -createname "Shares"
-
                     Write-Output " "
                     Write-Output "-----------------------------------------------------------------"
                     Write-Output "Shared folders selection :"
@@ -408,7 +415,7 @@ if ($NewInstallation -eq $true){
                     Write-Output "10. Partages Juliette-Alan                   20. Partages Marianne-Alan"
                     Write-Output " "
 
-                    Read-Host $shareoptions = "Please type in the numbers of the options, separated by spaces "
+                    $shareoptions = Read-Host "Please type in the numbers of the options, separated by spaces "
 
                     $shareoptionsarray = $shareoptions.split(" ")
                     $outshareoptionsarray = $shareoptionsarray | ForEach-Object {
@@ -418,17 +425,17 @@ if ($NewInstallation -eq $true){
 
                     foreach ($outshareoptions_current in $outshareoptionsarray){
                         creatingLoading -createType "file" -createpath "$currentFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
-                        Add-Content -Path "$currentFolder\submounts\$outshareoptions_current.bat" -Value "rclone mount sftp-nas:/$outshareoptions_current `"$shareLocation\Share $sharenameequivalencemap['$outshareoptions_current']`""
+                        Add-Content -Path "$currentFolder\submounts\$outshareoptions_current.bat" -Value "rclone mount sftp-nas:/$outshareoptions_current `"$shareLocation\Share $($sharenameequivalencemap[$outshareoptions_current])`""
                     }
                 }
                 if ($NASfoldersOptions_current -eq '2'){
                     if ((Read-Host "Do you wish to access General Storage as a constantly plugged-in USB Drive (recommended) or as a simple folder ? [d | f] :") -eq "d") {
                         $generalAsDrive = $true
                         $generalLocation = "S:"
-                        if ((Test-Path -Path "$generalLocation") -eq $false) {
+                        if ((Test-Path -Path "$generalLocation") -eq $true) {
                             $generalLocation = Get-ChildItem function:[h-z]: -n | Where-Object{ !(test-path $_) } | Select-Object -First 1
                         }
-                        Write-Output "General Storage will be mounted as $generalLocation with the label "General Storage""
+                        Write-Output "General Storage will be mounted as $generalLocation with the label `"General Storage`""
                     } else {
                         $generalAsDrive = $false
                         $generalLocation = "$env:userprofile\General Storage"
@@ -438,7 +445,7 @@ if ($NewInstallation -eq $true){
                         }
                     }
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountgeneral$username.bat" -createname "mountgeneral$username.bat" -lang "$lang"
-                    Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "rclone mount sftp-nas:/general$username "$generalLocation""
+                    Write-Output "rclone mount sftp-nas:/general$username `"$generalLocation`"" > "$currentFolder\submounts\mountgeneral$username.bat"
                 }
                 if ($NASfoldersOptions_current -eq "3"){
                     if ((Read-Host "Do you wish to access Backups as a constantly plugged-in USB Drive (recommended) or as a simple folder ? [d | f] :") -eq "d"){
@@ -487,20 +494,19 @@ if ($NewInstallation -eq $true){
             Write-Output "-----------------------------------------------------------------"
             Write-Output "      - $($productEquivalenceMap["$serverInstall_currentOption"]) setup :"
             Write-Output "This option uses some very good software called WireGuard."
-            $null = Start-Job -ScriptBlock {
+            $dlWG = Start-Job -ScriptBlock {
                 param (
                     $tempDir
                 )
-                curl.exe -o "$tempDir\wireguard-installer.exe" -s https://download.wireguard.com/windows-client/wireguard-installer.exe
+                curl.exe -o "$tempDir\wireguard-installer.exe" https://download.wireguard.com/windows-client/wireguard-installer.exe
                 } -ArgumentList $tempDir
-            $timesofpoint = 0
             do {
                 Start-Sleep -Milliseconds 400
                 Write-Host -NoNewline "`r[.] Downloading WireGuard installer..."
                 Start-Sleep -Milliseconds 400
                 Write-Host -NoNewline "`r[ ] Downloading WireGuard installer..."
                 $timesofpoint = $timesofpoint + 1
-            } until ($timesofpoint -eq 2)
+            } until ($dlWG.State -eq "Completed")
             Write-Host "`r[✓] Downloading WireGuard installer..."
             Write-Output "The installer is going to ask you if you it to make modifications to your PC. Please answer "Yes" to this."
             Write-Output "Once some big white window pops up, you can close it and come back here."
@@ -509,8 +515,10 @@ if ($NewInstallation -eq $true){
             Start-Sleep 10
             Write-Output "Press any key to continue :"
             $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+            Remove-Item "$tempDir\wireguard-installer.exe"
             $username = Read-Host "Please type your server username "
             $Key = Read-Host "Please type in the security key given to you during the training "
+            $timesofpoint = 0
             do {
                 Start-Sleep -Milliseconds 400
                 Write-Host -NoNewline "`r[.] Creating WireGuard config..."
@@ -550,18 +558,18 @@ if ($NewInstallation -eq $true){
                 'gerard' = "76492d1116743f0423413b16050a5345MgB8AFcAKwBMAFYAMgBWAFkAegBWAG8ANgBKADYAVgB6AHYAegBDAE8ATwA2AFEAPQA9AHwAMABjADAAMwAzADkANwBjADQAYgAzAGYAMABlAGQAZgBiAGUAZABmAGUAOAAzADIANwA3ADkAYwAyADUAZgAyAGYAZAA3AGEANwA5AGMANAA4AGEAZAAyAGQANwAzAGYANgBhADcANABkAGYANwBiAGIAOQBhADQAMwA2ADAAYwA1AGUAMgA0AGYAYQAxAGUAOAA5ADMANABmADEAMgAzADUAMgBiADcANQBjADkAMgBjADcAOABlADgAOQBjADMAYwAzAGYAMwAyADIAOQA1ADkAMgBmADcAMAA1ADAANwA1AGEAMAAyADUAZQBmAGMAMQA2AGUAYQA5AGIAZgA4ADEAMABkADcAZAA3ADcANgBjADQANQBlADcAMQAwAGEAYwA1AGEANwA2ADIAMgAwADEAZQA1AGEAMAA4ADYANABjAGYANgBhAGQAYgAzAGMAYQAyADEAMQA3ADcAYwAzADMANgBhAGIAZgA3ADUAZgA3ADUAYwBmAGMAMwAwAGUA"
                 'james' = "null"
             }
-            Write-Output "[Interface]" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "Address = $($ipEquivalenceVPN[$username])" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "DNS = 10.100.0.1" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PrivateKey = $(Decrypt -EncryptedString $encryptedPrivateKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "[Peer]" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "AllowedIPs = 10.100.0.1/32, fd08:4711::1/128, 192.168.1.0" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf" #FIND CIDR NOTATION
-            Write-Output "Endpoint = grigwood.ml:50009" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PersistentKeepalive = 25" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PublicKey = $(Decrypt -EncryptedString $encryptedPublicKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PresharedKey = $(Decrypt -EncryptedString $encryptedPreSharedKeys[$username] -EncryptionKey $Key)"  >> "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "[Interface]" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "Address = $($ipEquivalenceVPN[$username])" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "DNS = 10.100.0.1" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "PrivateKey = $(Decrypt -EncryptedString $encryptedPrivateKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "[Peer]" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "AllowedIPs = 10.100.0.1/32, fd08:4711::1/128, 192.168.1.0" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf" #FIND CIDR NOTATION
+            Write-Output "Endpoint = grigwood.ml:50009" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "PersistentKeepalive = 25" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "PublicKey = $(Decrypt -EncryptedString $encryptedPublicKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Write-Output "PresharedKey = $(Decrypt -EncryptedString $encryptedPreSharedKeys[$username] -EncryptionKey $Key)"  >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
             Write-Host "`r[✓] Creating WireGuard config... Done !"
-            applyWireGuardConfig -configPath "$userDataDir\ServerDeploy\VPN\Ad-Blocking (only DNS is tunnelled).conf"
+            applyWireGuardConfig -configPath "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf" -interface "wg0"
         }
     }
 } elseif ($ReConfigure -eq $true) {
