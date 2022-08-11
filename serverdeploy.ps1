@@ -47,6 +47,7 @@ function creatingLoading {
         [Parameter(Mandatory = $true, Position = 0)] [string] $createpath,
         [Parameter(Mandatory = $false, Position = 0)] [string] $createname,
         [Parameter(Mandatory = $false, Position = 0)] [string] $shortcutDestPath,
+        [Parameter(Mandatory = $false, Position = 0)] [string] $shortcutIconPath,
         [Parameter(Mandatory = $true, Position = 0)] [string] $lang
     )
 
@@ -105,6 +106,9 @@ function creatingLoading {
             $WScriptObj = New-Object -ComObject ("WScript.Shell")
             $shortcut = $WscriptObj.CreateShortcut($createpath)
             $shortcut.TargetPath = $shortcutDestPath
+            if ($null -ne $shortcutIconPath){
+                $shortcut.IconLocation = $shortcutIconPath
+            }
             $shortcut.Save()
         }
     } else {
@@ -213,11 +217,11 @@ function dlGitHub {
         Start-Sleep -Milliseconds 400
         Write-Host -NoNewline "`r[.] $($langmap.5)..."
         Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[ ] $($langmap.6)..."
+        Write-Host -NoNewline "`r[ ] $($langmap.5)..."
         $timesofpoint = $timesofpoint + 1
     } until ($timesofpoint -eq 2)
     Remove-Item "$downloadPath" -Force
-    Write-Host "`r[✓] $($langmap.6)... $($langmap.2)"
+    Write-Host "`r[✓] $($langmap.5)... $($langmap.2)"
 
     #format version number
     $versionNumber = $versionCode.replace('v','')
@@ -357,32 +361,33 @@ if ($NewInstallation -eq $true){
             $key = Read-Host "Please type in the security key given to you during the training "
             dlGitHub -repo "ServerDeploy" -file "mount.vbs" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
             creatingLoading -createType "directory" -createpath "$currentFolder\submounts" -lang $lang -createname "submounts"
-            $dlRclone = Start-Job -ScriptBlock {
+            if ((Test-Path -Path "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -PathType Leaf) -eq $false){
+                $dlRclone = Start-Job -ScriptBlock {
                 param (
                     $tempDir
                 )
                 curl.exe -o "$tempDir\rclone.zip" https://downloads.rclone.org/rclone-current-windows-amd64.zip
                 } -ArgumentList $tempDir
-            do {
-                Start-Sleep -Milliseconds 400
-                Write-Host -NoNewline "`r[.] Downloading rclone..."
-                Start-Sleep -Milliseconds 400
-                Write-Host -NoNewline "`r[ ] Downloading rclone..."
-                $timesofpoint = $timesofpoint + 1
-            } until ($dlRclone.State -eq "Completed")
-            Expand-Archive -Path "$tempDir\rclone.zip" -DestinationPath "$tempDir\rclone" -Force
-            $rcloneExe = Get-ChildItem -Path "$tempDir\rclone" -Filter "rclone.exe" -Recurse | ForEach-Object{$_.FullName}
-            Copy-Item -Path "$rcloneExe" -Destination "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -Force
-            Remove-Item -Path "$tempDir\rclone\*" -Recurse -Force
-            Remove-Item -Path "$tempDir\rclone.zip"
-            Write-Host "`r[✓] Downloading rclone... Done !"
-            creatingLoading -createType "directory" -createpath "$env:appdata\rclone" -createname "rclone" -lang "$lang"
+                do {
+                    Start-Sleep -Milliseconds 400
+                    Write-Host -NoNewline "`r[.] Downloading rclone..."
+                    Start-Sleep -Milliseconds 400
+                    Write-Host -NoNewline "`r[ ] Downloading rclone..."
+                    $timesofpoint = $timesofpoint + 1
+                } until ($dlRclone.State -eq "Completed")
+                Expand-Archive -Path "$tempDir\rclone.zip" -DestinationPath "$tempDir\rclone" -Force
+                $rcloneExe = Get-ChildItem -Path "$tempDir\rclone" -Filter "rclone.exe" -Recurse | ForEach-Object{$_.FullName}
+                Copy-Item -Path "$rcloneExe" -Destination "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -Force
+                Remove-Item -Path "$tempDir\rclone\*" -Recurse -Force
+                Remove-Item -Path "$tempDir\rclone.zip"
+                Write-Host "`r[✓] Downloading rclone... Done !"
+                creatingLoading -createType "directory" -createpath "$env:appdata\rclone" -createname "rclone" -lang "$lang"
+            } else {Write-Host "[cross] Downloading rclone... Failed : rclone.exe already exists"}
             $username = Read-Host "Please enter your server username "
             $password = Read-Host "Please enter your server password "
             creatingLoading -createType "file" -createpath "$env:appdata\rclone\rclone.conf" -createname "rclone.conf" -lang "$lang"
-            $escapedBinairiesDir = $binairiesDir.Replace(" ","` ")
-            Invoke-Expression -Command "$escapedBinairiesDir\ServerDeploy\SFTPmount\rclone.exe config create test sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
-            Invoke-Expression -Command "$escapedBinairiesDir\ServerDeploy\SFTPmount\rclone.exe config password sftp-nas pass `"$password`""
+            cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config create sftp-nas sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
+            cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config password sftp-nas pass `"$password`""
             Write-Output " "
             Write-Output "Folders selection :"
             Write-Output "  1. Shares"
@@ -422,22 +427,26 @@ if ($NewInstallation -eq $true){
                         $selectedshareoption = $_;
                         Write-Output $shareoptionequivalencemap[$selectedshareoption]
                     }
-
                     foreach ($outshareoptions_current in $outshareoptionsarray){
                         creatingLoading -createType "file" -createpath "$currentFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
                         Add-Content -Path "$currentFolder\submounts\$outshareoptions_current.bat" -Value "rclone mount sftp-nas:/$outshareoptions_current `"$shareLocation\Share $($sharenameequivalencemap[$outshareoptions_current])`""
                     }
+                    $shortcut = Read-Host "Do you want a shortcut on your Desktop to access your Shares folder (recommended) ? [y | n]"
+                    if (($shortcut -eq "y") -or ($shortcut -eq "o")){
+                        $desktop = [Environment]::GetFolderPath('Desktop')
+                        creatingLoading -createType "shortcut" -createpath "$desktop\Shares.lnk" -shortcutDestPath "$shareLocation" -shortcutIconPath "shell32.dll,158"
+                    }
                 }
                 if ($NASfoldersOptions_current -eq '2'){
                     if ((Read-Host "Do you wish to access General Storage as a constantly plugged-in USB Drive (recommended) or as a simple folder ? [d | f] :") -eq "d") {
-                        $generalAsDrive = $true
+                        $type = "drive"
                         $generalLocation = "S:"
                         if ((Test-Path -Path "$generalLocation") -eq $true) {
                             $generalLocation = Get-ChildItem function:[h-z]: -n | Where-Object{ !(test-path $_) } | Select-Object -First 1
                         }
                         Write-Output "General Storage will be mounted as $generalLocation with the label `"General Storage`""
                     } else {
-                        $generalAsDrive = $false
+                        $type = "folder"
                         $generalLocation = "$env:userprofile\General Storage"
                         Write-Output "The default place for the General Storage folder is $env:userprofile."
                         if ((Read-Host "Do you wish to change that ? [y | n]") -eq "y") {
@@ -445,26 +454,37 @@ if ($NewInstallation -eq $true){
                         }
                     }
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountgeneral$username.bat" -createname "mountgeneral$username.bat" -lang "$lang"
-                    Write-Output "rclone mount sftp-nas:/general$username `"$generalLocation`"" > "$currentFolder\submounts\mountgeneral$username.bat"
+                    Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`"" 
+                    $shortcut = Read-Host "Do you want a shortcut on your Desktop to access your General Storage $type (recommended) ? [y | n]"
+                    if (($shortcut -eq "y") -or ($shortcut -eq "o")){
+                        $desktop = [Environment]::GetFolderPath('Desktop')
+                        creatingLoading -createType "shortcut" -createpath "$desktop\General Storage.lnk" -shortcutDestPath "$generalLOcation" -shortcutIconPath "shell32,149"
+                    }
                 }
                 if ($NASfoldersOptions_current -eq "3"){
                     if ((Read-Host "Do you wish to access Backups as a constantly plugged-in USB Drive (recommended) or as a simple folder ? [d | f] :") -eq "d"){
-                        $backupsAsDrive = $true
+                        $type = "drive"
                         $generalLocation = "B:"
                         if ((Test-Path -Path "$generalLocation") -eq $false) {
                             $generalLocation = Get-ChildItem function:[i-z]: -n | Where-Object{ !(test-path $_) } | Select-Object -First 1
                         }
                         Write-Output "Backups will be mounted as $generalLocation with the label "Backups""
                     } else {
-                        $backupsAsDrive = $false
+                        $type = "folder"
                         $backupsLocation = "$env:userprofile\Backups"
                         Write-Output "The default place for the General Storage folder is $env:userprofile."
                         if ((Read-Host "Do you wish to change that ? [y | n]") -eq "y"){
                             $generalLocation = Read-Host "Please type in the place where you want the Shares folder to be located "
                         }
                     }
+                    $backupname = $username + "backup"
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountbackups$username.bat" -createname "mountbackups$username.bat" -lang "$lang"
-                    Add-Content -Path "$currentFolder\submounts\mountbackups$username.bat" -Value "rclone mount sftp-nas:/backups$username "$generalLocation""
+                    Add-Content -Path "$currentFolder\submounts\mountbackups$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`""
+                    $shortcut = Read-Host "Do you want a shortcut on your Desktop to access your Backups folder (recommended) ? [y | n]"
+                    if (($shortcut -eq "y") -or ($shortcut -eq "o")){
+                        $desktop = [Environment]::GetFolderPath('Desktop')
+                        creatingLoading -createType "shortcut" -createpath "$desktop\Backups.lnk" -shortcutDestPath "$shareLocation" -shortcutIconPath "shell32,6"
+                    }
                 }
             }
             $autoMount = Read-Host "Do you want the folders selected above to be automatically mounted when you start your computer (recommended) [y | n]"
@@ -558,18 +578,18 @@ if ($NewInstallation -eq $true){
                 'gerard' = "76492d1116743f0423413b16050a5345MgB8AFcAKwBMAFYAMgBWAFkAegBWAG8ANgBKADYAVgB6AHYAegBDAE8ATwA2AFEAPQA9AHwAMABjADAAMwAzADkANwBjADQAYgAzAGYAMABlAGQAZgBiAGUAZABmAGUAOAAzADIANwA3ADkAYwAyADUAZgAyAGYAZAA3AGEANwA5AGMANAA4AGEAZAAyAGQANwAzAGYANgBhADcANABkAGYANwBiAGIAOQBhADQAMwA2ADAAYwA1AGUAMgA0AGYAYQAxAGUAOAA5ADMANABmADEAMgAzADUAMgBiADcANQBjADkAMgBjADcAOABlADgAOQBjADMAYwAzAGYAMwAyADIAOQA1ADkAMgBmADcAMAA1ADAANwA1AGEAMAAyADUAZQBmAGMAMQA2AGUAYQA5AGIAZgA4ADEAMABkADcAZAA3ADcANgBjADQANQBlADcAMQAwAGEAYwA1AGEANwA2ADIAMgAwADEAZQA1AGEAMAA4ADYANABjAGYANgBhAGQAYgAzAGMAYQAyADEAMQA3ADcAYwAzADMANgBhAGIAZgA3ADUAZgA3ADUAYwBmAGMAMwAwAGUA"
                 'james' = "null"
             }
-            Write-Output "[Interface]" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "Address = $($ipEquivalenceVPN[$username])" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "DNS = 10.100.0.1" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PrivateKey = $(Decrypt -EncryptedString $encryptedPrivateKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "[Peer]" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "AllowedIPs = 10.100.0.1/32, fd08:4711::1/128, 192.168.1.0" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf" #FIND CIDR NOTATION
-            Write-Output "Endpoint = grigwood.ml:50009" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PersistentKeepalive = 25" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PublicKey = $(Decrypt -EncryptedString $encryptedPublicKeys[$username] -EncryptionKey $Key)" >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
-            Write-Output "PresharedKey = $(Decrypt -EncryptedString $encryptedPreSharedKeys[$username] -EncryptionKey $Key)"  >> "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "[Interface]"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "Address = $($ipEquivalenceVPN[$username])"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "DNS = 10.100.0.1"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "PrivateKey = $(Decrypt -EncryptedString $encryptedPrivateKeys[$username] -EncryptionKey $Key)"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "[Peer]"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "AllowedIPs = 10.100.0.1/32, fd08:4711::1/128, 192.168.1.0/24"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "Endpoint = grigwood.ml:50009"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "PersistentKeepalive = 25"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "PublicKey = $(Decrypt -EncryptedString $encryptedPublicKeys[$username] -EncryptionKey $Key)"
+            Add-Content -Path "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -Value "PresharedKey = $(Decrypt -EncryptedString $encryptedPreSharedKeys[$username] -EncryptionKey $Key)"
             Write-Host "`r[✓] Creating WireGuard config... Done !"
-            applyWireGuardConfig -configPath "$userDataDir\ServerDeploy\Ad-Blocking (only DNS is tunnelled).conf" -interface "wg0"
+            applyWireGuardConfig -configPath "$userDataDir\ServerDeploy\Ad-Blocking_only-DNS.conf" -interface "wg0"
         }
     }
 } elseif ($ReConfigure -eq $true) {
