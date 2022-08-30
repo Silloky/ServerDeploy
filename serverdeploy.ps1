@@ -1,6 +1,7 @@
 ﻿param (
     [switch]$NewInstallation = $false,
-    [switch]$ReConfigure = $false
+    [switch]$ReConfigure = $false,
+    [string]$lang
 )
 
 
@@ -13,14 +14,6 @@ if (Test-Path -Path "$env:programfiles\Kirkwood Soft"){
 }
 
 $tempDir = "$env:temp"
-
-if ((Get-Content -Path "$binairiesDir\LANGUAGE.txt") -eq "FR"){
-    $langmap = $frlangmap
-    $lang = "FR"
-} elseif ((Get-Content -Path "$binairiesDir\LANGUAGE.txt") -eq "EN"){
-    $langmap = $enlangmap
-    $lang = "EN"
-}
 
 $enlangmap = @{
     1 = "Welcome to ServerDeploy ! This tool will guide you into configuring your access to the GrigWood server."
@@ -162,6 +155,22 @@ $frlangmap = @{
     66 = "Veuillez saisir le nom d'utilisateur de votre serveur "
     67 = "Veuillez saisir la clé de sécurité qui vous a été remise lors de la formation "
     68 = "Création de la configuration WireGuard"
+}
+
+# $lang = Read-Host "Language "
+# if ($lang -eq "FR"){
+#     $langmap = $frlangmap
+# }
+# if ($lang -eq "EN"){
+#     $langmap = $enlangmap
+# }
+
+if ((Get-Content -Path "$binairiesDir\LANGUAGE.txt") -eq "FR"){
+    $langmap = $frlangmap
+    $lang = "FR"
+} else {
+    $langmap = $enlangmap
+    $lang = "EN"
 }
 
 function Decrypt {
@@ -412,26 +421,26 @@ $shareoptionequivalencemap = @{
 }
 
 $sharenameequivalencemap = @{
-    'partageseliasgerard' = "Elias-Gérard"
+    'partageseliasgerard' = "Elias-Gerard"
     'partagesmarianneautres' = "Marianne-Autres"
     'partageseliasjames' = "Elias-James"
     'paratgesmarianneelias' = "Marianne-Elias"
-    'partagesgerardautres' = "Gérard-Autres"
+    'partagesgerardautres' = "Gerard-Autres"
     'partagesmariannegerard' = "Marianne-Gérard"
-    'partagesgerardjames' = "Gérard-James"
+    'partagesgerardjames' = "Gerard-James"
     'paratgesalanjames' = "Alan-James"
     'partagesjuliettemarianne' = "Juliette-Marianne"
-    'partagesjuliettealan' = "Juliette-Marianne"
+    'partagesjuliettealan' = "Juliette-Alan"
     'partagesjulietteautres' = "Juliette-Autres"
     'partagesalanautres' = "Alan-Others"
     'partagesjulietteelias' = "Juliette-Elias"
     'partagesalanelias' = "Alan-Elias"
     'partagesjuliettegerard' = "Juliette-Gérard"
-    'partagesalangerard' = "Alan-Gérard"
+    'partagesalangerard' = "Alan-Gerard"
     'partagesjuliettejames' = "Juliette-James"
     'partagesjamesautres' = "James-Others"
     'partageseliasautres' = "Elias-Others"
-    'paratgesmariannealan' = "Marianne-Alan"
+    'partagesmariannealan' = "Marianne-Alan"
 }
 
 $productEquivalenceMap = @{
@@ -500,7 +509,7 @@ if ($NewInstallation -eq $true){
         creatingLoading -createType "directory" -createpath "$currentFolder" -lang $lang -createname "$($productEquivalenceMap["$serverInstall_currentOption"])"
         if ($serverInstall_currentOption -eq "1"){
             $token = "76492d1116743f0423413b16050a5345MgB8AFgAUQBqAE8AcgA0AEgAaQBpAEgAQQBjAHYAagBTAHIARgBNADAALwA2AFEAPQA9AHwAZQBjADUAYQA2AGIAYwA2AGUANwBjADEANQA5ADAAOAA1ADgAOABlADEAMAAxADUAOQA2AGEAZQA1AGQANQAwADcANABmAGYAZgA3ADQAZAA4AGIAMQAyADgAYwBlADYAZgA1ADMAYwBhADMAMgAyADAANgA2ADIANAA4AGQAMwA0ADcAZgAyAGQAYwBlADgAYQA3ADIAZQA0AGEAOQAxADYAMAA1ADQAMgA2AGMAZQBhAGYANwA5ADIANgBhADQAOQA0ADMAMgBhAGQANQA1AGUAMgBjADgAYQA1ADUANABmADkAYgA4ADIAMAAxAGYANABhADIAZgAyAGEAOQA4ADcAMwAzADUAZAA1ADkAYwAyADQAOABlADUAOABlAGIANwAwADAAZABlADcAYgBkADMAYwA4ADMAZgBjAGUAMgBjADQAMABkADIAYwA3ADUAMwBhADgAOQAyADIAMgAwAGQAYwA1AGEAMgAyADkAZQAzADAAOQBlADYAMABkADEA"
-            $key = Read-Host $($langmap.22)
+            $key = Read-Host $($langmap.21)
             dlGitHub -repo "ServerDeploy" -file "mount.vbs" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
             creatingLoading -createType "directory" -createpath "$currentFolder\submounts" -lang $lang -createname "submounts"
             if ((Test-Path -Path "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -PathType Leaf) -eq $false){
@@ -528,8 +537,8 @@ if ($NewInstallation -eq $true){
             $username = Read-Host "$($langmap.24) $($langmap.25) "
             $password = Read-Host "$($langmap.24) $($langmap.26) "
             creatingLoading -createType "file" -createpath "$env:appdata\rclone\rclone.conf" -createname "rclone.conf" -lang "$lang"
-            cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config create sftp-nas sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
-            cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config password sftp-nas pass `"$password`""
+            $null = cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config create sftp-nas sftp host `"grigwood.ml`" port `"50007`" user `"$username`""
+            $null = cmd.exe /b /c "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" config password sftp-nas pass `"$password`""
             Write-Output " "
             Write-Output $langmap.28
             Write-Output $langmap.29
@@ -572,7 +581,7 @@ if ($NewInstallation -eq $true){
                     }
                     foreach ($outshareoptions_current in $outshareoptionsarray){
                         creatingLoading -createType "file" -createpath "$currentFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
-                        Add-Content -Path "$currentFolder\submounts\$outshareoptions_current.bat" -Value "rclone mount sftp-nas:/$outshareoptions_current `"$shareLocation\Share $($sharenameequivalencemap[$outshareoptions_current])`""
+                        Add-Content -Path "$currentFolder\submounts\$outshareoptions_current.bat" -Value "rclone mount sftp-nas:/$outshareoptions_current `"$shareLocation\$($langmap.33) $($sharenameequivalencemap[$outshareoptions_current])`" --vfs-cache-mode writes"
                     }
                     $shortcut = Read-Host $langmap.39
                     if (($shortcut -eq "y") -or ($shortcut -eq "o")){
@@ -600,15 +609,15 @@ if ($NewInstallation -eq $true){
                     }
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountgeneral$username.bat" -createname "mountgeneral$username.bat" -lang "$lang"
                     if ($type -eq "drive"){
-                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname $($langmap.43)" 
+                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname $($langmap.43) --vfs-cache-mode writes" 
                     } elseif ($type -eq "folder"){
-                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`"" 
+                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --vfs-cache-mode writes" 
                     }
                     
                     $shortcut = Read-Host "$($langmap.47) $type $($langmap.48)"
                     if (($shortcut -eq "y") -or ($shortcut -eq "o")){
                         $desktop = [Environment]::GetFolderPath('Desktop')
-                        creatingLoading -createType "shortcut" -createpath "$desktop\$($langmap.43).lnk" -shortcutDestPath "$generalLOcation" -shortcutIconPath "shell32,149"
+                        creatingLoading -createType "shortcut" -createpath "$desktop\$($langmap.43).lnk" -shortcutDestPath "$generalLOcation" -shortcutIconPath "shell32.dll,149"
                     }
                 }
                 if ($NASfoldersOptions_current -eq "3"){
@@ -629,17 +638,17 @@ if ($NewInstallation -eq $true){
                             $generalLocation = Read-Host $langmap.53
                         }
                     }
-                    $backupname = $username + "backup"
+                    $backupname = $username + "-backup"
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountbackups$username.bat" -createname "mountbackups$username.bat" -lang "$lang"
                     if ($type -eq "drive"){
-                        Add-Content -Path "$currentFolder\submounts\mountbackups$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`" --volname Backups"
+                        Add-Content -Path "$currentFolder\submounts\mountbackups$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`" --volname `"Backups`" --vfs-cache-mode writes"
                     } elseif ($type -eq "folder"){
                         Add-Content -Path "$currentFolder\submounts\mountbackups$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`""
                     }
                     $shortcut = Read-Host "$($langmap.47) $type $($langmap.48)"
                     if (($shortcut -eq "y") -or ($shortcut -eq "o")){
                         $desktop = [Environment]::GetFolderPath('Desktop')
-                        creatingLoading -createType "shortcut" -createpath "$desktop\Backups.lnk" -shortcutDestPath "$shareLocation" -shortcutIconPath "shell32,6"
+                        creatingLoading -createType "shortcut" -createpath "$desktop\Backups.lnk" -shortcutDestPath "$backupsLocation" -shortcutIconPath "shell32.dll,6"
                     }
                 }
             }
@@ -656,7 +665,7 @@ if ($NewInstallation -eq $true){
                     Write-Host -NoNewline "`r[ ] $($langmap.56)..."
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
-                $scheduledAction = New-ScheduledTaskAction -Execute "$currentFolder\mount.vbs" -Argument "`"$currentFolder\submounts`""
+                $scheduledAction = New-ScheduledTaskAction -Execute "cscript.exe" -Argument "`"$currentFolder\mount.vbs`" `"$currentFolder\submounts`""
                 Write-Host "`r[✓] $($langmap.56)... $($langmap.23) !"
                 $timesofpoint = 0
                 do {
