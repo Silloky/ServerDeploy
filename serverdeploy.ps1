@@ -685,7 +685,7 @@ if ($NewInstallation -eq $true){
                     Write-Host -NoNewline "`r[ ] $($langmap.58)..."
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
-                $scheduledSettings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable
+                $scheduledSettings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable -AllowStartIfOnBatteries -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -DontStopIfGoingOnBatteries
                 Write-Host "`r[✓] $($langmap.58)... $($langmap.23) !"
                 $timesofpoint = 0
                 do {
@@ -696,7 +696,7 @@ if ($NewInstallation -eq $true){
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
                 $scheduledTask = New-ScheduledTask -Action $scheduledAction -Trigger $scheduledTrigger -Settings $scheduledSettings
-                Register-ScheduledTask -TaskName 'ServerDeploy Automatic Mounter' -InputObject $scheduledTask -User "NT AUTHORITY\LOCALSERVICE"
+                Register-ScheduledTask -TaskName 'mount test' -InputObject $scheduledTask -User "NT AUTHORITY\SYSTEM"
                 Write-Host "`r[✓] $($langmap.59)... $($langmap.23) !"
             } elseif ($autoMount -eq 'n'){
                 Write-Output $langmap.60
