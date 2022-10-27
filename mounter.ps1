@@ -4,8 +4,60 @@ param (
     $cacheLocation,
     $confLocation
 )
+
+function mountAsLetter {
+    param (
+        [Parameter(Mandatory=$true)]$letter,
+        $dirToMount,
+        [Parameter(Mandatory=$false)][Switch]$Add,
+        [Parameter(Mandatory=$false)][Switch]$Remove
+    )
+    if ($Add -eq $true){
+        subst.exe $letter "$dirToMount"
+    } elseif ($Remove -eq $true){
+        subst.exe /D $letter
+    }
+}
+
+function Compare-Hashtable {
+[CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [Hashtable]$Left,
+
+        [Parameter(Mandatory = $true)]
+        [Hashtable]$Right		
+    )
+    
+    function New-Result($Key, $LValue, $Side, $RValue) {
+        New-Object -Type PSObject -Property @{
+                    key    = $Key
+                    lvalue = $LValue
+                    rvalue = $RValue
+                    side   = $Side
+            }
+    }
+    [Object[]]$Results = $Left.Keys | % {
+        if ($Left.ContainsKey($_) -and !$Right.ContainsKey($_)) {
+            New-Result $_ $Left[$_] "<=" $Null
+        } else {
+            $LValue, $RValue = $Left[$_], $Right[$_]
+            if ($LValue -ne $RValue) {
+                New-Result $_ $LValue "!=" $RValue
+            }
+        }
+    }
+    $Results += $Right.Keys | % {
+        if (!$Left.ContainsKey($_) -and $Right.ContainsKey($_)) {
+            New-Result $_ $Null "=>" $Right[$_]
+        } 
+    }
+    $Results 
+}
+
 $rcloneRunning = $false
 $offlineMount = $false
+
 do {
     $csv=import-csv $confLocation
     $headers=$csv[0].psobject.properties.name
@@ -21,11 +73,31 @@ do {
         }
     }
     if ($networkavailable -eq $true){
-        if ($rcloneRunning -eq $false){
-            Invoke-Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
-            $rcloneRunning = $true
+        if ($offlineMount -eq $true){
+            foreach ($cache in $config.Keys){
+                $mountPoint = $config[$cache]
+                if ($mountPoint.length -eq 2){
+                    mountAsLetter -letter $mountPoint -Remove
+                } else {
+                    Remove-Item -Path $mountPoint -Force -Confirm:$false
+                    if ($null -ne $dirsToCreate){
+                        $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
+                        Remove-Item -Path $dirsToCreate[0] -Recurse -Confirm:$false -Force
+                    }
+                    Remove-Item -Path "$env:TEMP\SFTPMount" -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Force
+                    foreach ($item in (subst.exe)){
+                        $item = $item.Split("\")[0]
+                        mountAsLetter -letter $item -Remove
+                    }
+                }
+                $offlineMount = $false
+            }
         }
-        Start-Sleep 2
+        if ($rcloneRunning -eq $false){
+            Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
+            $rcloneRunning = $true
+            Start-Sleep 20
+        }
         foreach ($cache in $config.Keys){
             $server = $config[$cache]
             $a = $server
@@ -134,30 +206,60 @@ do {
                     }
                     New-Item -Path $folder -ItemType Directory
                 }
+                if ((Compare-Hashtable -Left $oldConfig -Right $config).key -eq $cache){
+                    $showNotification = $true
+                    [float]$totalSize = 0
+                    foreach ($origin in $copies.Keys){
+                        $totalSize = $totalSize + (Get-Item -Path $origin).length/1KB
+                    }
+                }
+                if ($showNotification){
+                    $progress = New-BTProgressBar -Title "Copying progress :" -Status "Downloading..." -Value 'value'
+                    $image = New-BTImage -Source "$PSScriptRoot\icons\shell32_16739.ico" -Crop None
+                    $button = New-BTButton -Dismiss -Content "OK"
+                    $binding = @{
+                        value = 0
+                    }
+                    New-BurntToastNotification -Text "Downloading your files...", "Your files are being downloaded so they can be available offline." -DataBinding $binding -UniqueIdentifier "001" -ProgressBar $progress -AppLogo $image
+                    $totalCopied = 0
+                }
                 foreach ($origin in $copies.Keys){
                     $end = $copies[$origin]
-                    if ((Get-Item -Path $path).Directory -eq $false){
+                    if ((Get-Item -Path $path) -isnot [System.IO.DirectoryInfo]){
                         Copy-Item -Path $origin -Destination $end
                     } else {
                         Copy-Item -Path $origin -Destination $end -Container
+                        if ($showNotification){
+                            $totalCopied = $totalCopied + (Get-Item -Path $origin).length/1KB
+                            $binding['value'] = 100*$totalCopied/$totalSize
+                            $null = Update-BTNotification -UniqueIdentifier "001" -DataBinding $binding
+                        }
                     }
+                }
+                if ($showNotification){
+                    Remove-BTNotification -UniqueIdentifier "001"
+                    New-BurntToastNotification -Text "Done !", "Your files are now available offline." -AppLogo $image -Button $button
+                    $showNotification = $false
                 }
             }
             $oldA = $aContent
             $oldB = $bContent
+            echo "Synced"
         }
     } else {
         if ($rcloneRunning -eq $true){
             taskkill.exe /IM rclone.exe /F
+            $rcloneRunning = $false
         }
         if ($offlineMount -eq $false){
-            foreach ($cache in $config){
+            foreach ($cache in $config.Keys){
                 $mountPoint = $config[$cache]
                 if ($mountPoint.length -eq 2){
-                    subst.exe $mountPoint $cache
+                    mountAsLetter -letter $mountPoint -dirToMount $cache -Add
                 } else {
                     $slashCount = ($mountPoint.ToCharArray() | Where-Object {$_ -eq '\'} | Measure-Object).Count
                     $times = 0
+                    $dirsToCreate = New-Object System.Collections.ArrayList
                     do {
                         if ($times -eq 0){
                             $lastSlash = $mountPoint.LastIndexOf("\")
@@ -175,13 +277,24 @@ do {
                         $dirsToCreate = $dirsToCreate | Select-Object -Unique
                         $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
                     }
+                    $n = 0
                     foreach ($folder in $dirsToCreate){
-                        New-Item -Path $folder -ItemType Directory
+                        if ($folder.length -eq 2){
+                            if ((Test-Path -Path "$env:TEMP\SFTPMount") -eq $false){New-Item -Path "$env:TEMP\SFTPMount" -ItemType Directory}
+                            New-Item -Path "$env:TEMP\SFTPMount\$n" -ItemType Directory
+                            mountAsLetter -letter $folder -dirToMount "$env:TEMP\SFTPMount\$n" -Add
+                        } else {
+                            New-Item -Path $folder -ItemType Directory
+                        }
                     }
                     New-Item -Path $mountPoint -ItemType Junction -Target $cache
                 }
+                $offlineMount = $true
+                echo "Mounted"
             }
         }
     }
-    Start-Sleep 15
+    $oldConfig = $config
+    Start-Sleep 20
+    echo "Done"
 } while ($true)
