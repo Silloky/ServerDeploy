@@ -5,7 +5,12 @@ param (
 )
 $name = Split-Path -Path $path -Leaf
 $cacheLoc = $cache + "\$name"
-
+if ((Test-Path -Path $cache) -eq $false){
+    New-Item -Path $cache -ItemType Directory
+}
+if ((Test-path -Path $csv) -eq $false){
+    New-Item -Path $csv -ItemType File
+}
 if ((Test-Path -Path $cacheLoc) -eq $false){
     New-Item -Path $cacheLoc -ItemType Directory
     $outputLine = "$cacheLoc,$path"

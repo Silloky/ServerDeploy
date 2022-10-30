@@ -1,0 +1,14 @@
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache"
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache" -Name "(Default)" -Value "Make online files available offline" -Force
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache" -Name "icon" -Value "%SystemRoot%\System32\imageres.dll,233" -PropertyType "String"
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache\command"
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache\command" -Name "(Default)" -Value "powershell.exe -WindowStyle Hidden -File `"D:\Coding\ServerDeploy\addToCache.ps1`" -path `"%1`" -csv `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\cache.csv`" -cache `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\offline_cache`""
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache"
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache" -Name "(Default)" -Value "Remove folder from offline access" -Force
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache" -Name "icon" -Value "%SystemRoot%\System32\imageres.dll,232" -PropertyType "String"
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache\command"
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.removeFromCache\command" -Name "(Default)" -Value "powershell.exe -WindowStyle Hidden -File `"D:\Coding\ServerDeploy\removeFromCache.ps1`" -path `"%1`" -csv `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\cache.csv`" -cache `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\offline_cache`""
+New-Item -Path "HKCR:\Directory\shell\Kirkwood Soft"
+New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "icon" -Value "%SYSTEMROOT%\system32\shell32.dll,149" -PropertyType "String"
+New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "MUIVerb" -Value "SFTPMount" -PropertyType "String"
+New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "SubCommands" -Value "Custom.addToCache;Custom.removeFromCache" -PropertyType "String"

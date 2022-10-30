@@ -10,7 +10,7 @@ if (Test-Path -Path "$env:programfiles\Kirkwood Soft"){
     $userDataDir = "$env:appdata\Kirkwood Soft"
 } elseif (Test-Path -Path "$env:appdata\Kirkwood Soft\binairies") {
     $binairiesDir = "$env:appdata\Kirkwood Soft\binairies"
-    $userdataDir = "$env:appdata\Kirkwood Soft\data"
+    $userDataDir = "$env:appdata\Kirkwood Soft\data"
 }
 
 $tempDir = "$env:temp"
@@ -84,6 +84,8 @@ $enlangmap = @{
     66 = "Please type your server username "
     67 = "Please type in the security key given to you during the training "
     68 = "Creating WireGuard config"
+    69 = "Make the contents of this folder available offline"
+    70 = "Remove folder from offline-access list"
 }
 
 $frlangmap = @{
@@ -155,6 +157,8 @@ $frlangmap = @{
     66 = "Veuillez saisir le nom d'utilisateur de votre serveur "
     67 = "Veuillez saisir la clé de sécurité qui vous a été remise lors de la formation "
     68 = "Création de la configuration WireGuard"
+    69 = "Sauvegarder le contenu du dossier pour un usage hors-ligne"
+    70 = "Supprimer ce dossier de la liste des dossiers sauvegardés"
 }
 
 # $lang = Read-Host "Language "
@@ -507,17 +511,35 @@ if ($NewInstallation -eq $true){
         Write-Output "      - $($productEquivalenceMap["$serverInstall_currentOption"]) setup :"
         $currentFolder = "$binairiesDir\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])"
         creatingLoading -createType "directory" -createpath "$currentFolder" -lang $lang -createname "$($productEquivalenceMap["$serverInstall_currentOption"])"
+        creatingLoading -createType "directory" -createpath "$userDataDir\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])"
         if ($serverInstall_currentOption -eq "1"){
             $token = "76492d1116743f0423413b16050a5345MgB8AFgAUQBqAE8AcgA0AEgAaQBpAEgAQQBjAHYAagBTAHIARgBNADAALwA2AFEAPQA9AHwAZQBjADUAYQA2AGIAYwA2AGUANwBjADEANQA5ADAAOAA1ADgAOABlADEAMAAxADUAOQA2AGEAZQA1AGQANQAwADcANABmAGYAZgA3ADQAZAA4AGIAMQAyADgAYwBlADYAZgA1ADMAYwBhADMAMgAyADAANgA2ADIANAA4AGQAMwA0ADcAZgAyAGQAYwBlADgAYQA3ADIAZQA0AGEAOQAxADYAMAA1ADQAMgA2AGMAZQBhAGYANwA5ADIANgBhADQAOQA0ADMAMgBhAGQANQA1AGUAMgBjADgAYQA1ADUANABmADkAYgA4ADIAMAAxAGYANABhADIAZgAyAGEAOQA4ADcAMwAzADUAZAA1ADkAYwAyADQAOABlADUAOABlAGIANwAwADAAZABlADcAYgBkADMAYwA4ADMAZgBjAGUAMgBjADQAMABkADIAYwA3ADUAMwBhADgAOQAyADIAMgAwAGQAYwA1AGEAMgAyADkAZQAzADAAOQBlADYAMABkADEA"
             $key = Read-Host $($langmap.21)
-            dlGitHub -repo "ServerDeploy" -file "mount.vbs" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
+            dlGitHub -repo "ServerDeploy" -file "mounter.ps1" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
+            dlGitHub -repo "ServerDeploy" -file "addToCache.ps1" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
+            dlGitHub -repo "ServerDeploy" -file "removeFromCache.ps1" -lang $lang -endLocation "$currentFolder" -token "$token" -key "$key"
+            dlGitHub -repo "ServerDeploy" -file "icons.zip" -lang $lang -endLocation "$currentFolder\icons" -token "$token" -key "$key"
             creatingLoading -createType "directory" -createpath "$currentFolder\submounts" -lang $lang -createname "submounts"
+            New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache"
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache" -Name "(Default)" -Value "$($langmap.69)" -Force
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache" -Name "icon" -Value "%SystemRoot%\System32\imageres.dll,233" -PropertyType "String"
+            New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache\command"
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.addToCache\command" -Name "(Default)" -Value "powershell.exe -WindowStyle Hidden -File `"$currentFolder\addToCache.ps1`" -path `"%1`" -csv `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\cache.csv`" -cache `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\offline_cache`" -lang $lang"
+            New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache"
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache" -Name "(Default)" -Value "$($langmap.70)" -Force
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache" -Name "icon" -Value "%SystemRoot%\System32\imageres.dll,232" -PropertyType "String"
+            New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.RemoveFromCache\command"
+            New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\Custom.removeFromCache\command" -Name "(Default)" -Value "powershell.exe -WindowStyle Hidden -File `"$currentFolder\removeFromCache.ps1`" -path `"%1`" -csv `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\cache.csv`" -cache `"C:\Users\Elias Kirkwood\AppData\Roaming\Kirkwood Soft\data\ServerDeploy\SFTPmount\offline_cache`" -lang $lang"
+            New-Item -Path "HKCR:\Directory\shell\Kirkwood Soft"
+            New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "icon" -Value "%SYSTEMROOT%\system32\shell32.dll,149" -PropertyType "String"
+            New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "MUIVerb" -Value "SFTPMount" -PropertyType "String"
+            New-ItemProperty -Path "HKCR:\Directory\shell\Kirkwood Soft" -Name "SubCommands" -Value "Custom.addToCache;Custom.removeFromCache" -PropertyType "String"
             if ((Test-Path -Path "$binairiesDir\ServerDeploy\SFTPmount\rclone.exe" -PathType Leaf) -eq $false){
                 $dlRclone = Start-Job -ScriptBlock {
-                param (
-                    $tempDir
-                )
-                curl.exe -o "$tempDir\rclone.zip" https://downloads.rclone.org/rclone-current-windows-amd64.zip
+                    param (
+                        $tempDir
+                    )
+                    curl.exe -o "$tempDir\rclone.zip" https://downloads.rclone.org/rclone-current-windows-amd64.zip
                 } -ArgumentList $tempDir
                 do {
                     Start-Sleep -Milliseconds 400
@@ -665,7 +687,7 @@ if ($NewInstallation -eq $true){
                     Write-Host -NoNewline "`r[ ] $($langmap.56)..."
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
-                $scheduledAction = New-ScheduledTaskAction -Execute "cscript.exe" -Argument "`"$currentFolder\mount.vbs`" `"$currentFolder\submounts`""
+                $scheduledAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument " -WindowStyle Hidden -File `"$currentFolder\mounter.ps1`" -vbsLocation `"$currentFolder\mount.vbs`" -submountsLocation `"$currentFolder\submounts`" -cacheLocation `"$userDataDir\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])\offline_cache`" -confLocation `"$userDataDir\ServerDeploy\$($productEquivalenceMap["$serverInstall_currentOption"])\cache.csv`""
                 Write-Host "`r[✓] $($langmap.56)... $($langmap.23) !"
                 $timesofpoint = 0
                 do {
@@ -675,7 +697,7 @@ if ($NewInstallation -eq $true){
                     Write-Host -NoNewline "`r[ ] $($langmap.57)..."
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
-                $scheduledTrigger = New-ScheduledTaskTrigger -AtStartup
+                $scheduledTrigger = New-ScheduledTaskTrigger -AtLogOn
                 Write-Host "`r[✓] $($langmap.57)... $($langmap.23) !"
                 $timesofpoint = 0
                 do {
@@ -685,7 +707,7 @@ if ($NewInstallation -eq $true){
                     Write-Host -NoNewline "`r[ ] $($langmap.58)..."
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
-                $scheduledSettings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable -AllowStartIfOnBatteries -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -DontStopIfGoingOnBatteries
+                $scheduledSettings = New-ScheduledTaskSettingsSet -DontStopIfGoingOnBatteries
                 Write-Host "`r[✓] $($langmap.58)... $($langmap.23) !"
                 $timesofpoint = 0
                 do {

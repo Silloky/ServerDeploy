@@ -2,7 +2,8 @@ param (
     $vbsLocation,
     $submountsLocation,
     $cacheLocation,
-    $confLocation
+    $confLocation,
+    $lang
 )
 
 function mountAsLetter {
@@ -214,13 +215,27 @@ do {
                     }
                 }
                 if ($showNotification){
-                    $progress = New-BTProgressBar -Title "Copying progress :" -Status "Downloading..." -Value 'value'
+                    $langmap = @{}
+                    $enlangmap = @{
+                        1 = "Copying progress :"
+                        2 = "Downloading..."
+                        3 = "Downloading your files..."
+                        4 = "Your files are being downloaded so they can be available offline."
+                        5 = "Done !"
+                        6 = "Your files are now available offline."
+                    }
+                    if ($lang -eq "EN"){
+                        $langmap = $enlangmap
+                    } elseif ($lang -eq "FR"){
+                        $langmap = $frlangmap
+                    }
+                    $progress = New-BTProgressBar -Title "$($langmap.1)" -Status "$($langmap.2)" -Value 'value'
                     $image = New-BTImage -Source "$PSScriptRoot\icons\shell32_16739.ico" -Crop None
                     $button = New-BTButton -Dismiss -Content "OK"
                     $binding = @{
                         value = 0
                     }
-                    New-BurntToastNotification -Text "Downloading your files...", "Your files are being downloaded so they can be available offline." -DataBinding $binding -UniqueIdentifier "001" -ProgressBar $progress -AppLogo $image
+                    New-BurntToastNotification -Text "$($langmap.3)", "$($langmap.4)" -DataBinding $binding -UniqueIdentifier "001" -ProgressBar $progress -AppLogo $image -ExpirationTime (Get-Date).AddDays(1) 
                     $totalCopied = 0
                 }
                 foreach ($origin in $copies.Keys){
@@ -229,16 +244,16 @@ do {
                         Copy-Item -Path $origin -Destination $end
                     } else {
                         Copy-Item -Path $origin -Destination $end -Container
-                        if ($showNotification){
-                            $totalCopied = $totalCopied + (Get-Item -Path $origin).length/1KB
-                            $binding['value'] = 100*$totalCopied/$totalSize
-                            $null = Update-BTNotification -UniqueIdentifier "001" -DataBinding $binding
-                        }
+                    }
+                    if ($showNotification){
+                        $totalCopied = $totalCopied + (Get-Item -Path $origin).length/1KB
+                        $binding['value'] = $totalCopied/$totalSize
+                        $null = Update-BTNotification -UniqueIdentifier "001" -DataBinding $binding
                     }
                 }
                 if ($showNotification){
                     Remove-BTNotification -UniqueIdentifier "001"
-                    New-BurntToastNotification -Text "Done !", "Your files are now available offline." -AppLogo $image -Button $button
+                    New-BurntToastNotification -Text "$($langmap.5)", "$($langmap.6)" -AppLogo $image -Button $button
                     $showNotification = $false
                 }
             }
