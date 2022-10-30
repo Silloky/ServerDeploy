@@ -718,7 +718,7 @@ if ($NewInstallation -eq $true){
                     $timesofpoint = $timesofpoint + 1
                 } until ($timesofpoint -eq 2)
                 $scheduledTask = New-ScheduledTask -Action $scheduledAction -Trigger $scheduledTrigger -Settings $scheduledSettings
-                Register-ScheduledTask -TaskName 'mount test' -InputObject $scheduledTask -User "NT AUTHORITY\SYSTEM"
+                Register-ScheduledTask -TaskName 'SFTPmount' -InputObject $scheduledTask -User "NT AUTHORITY\SYSTEM"
                 Write-Host "`r[✓] $($langmap.59)... $($langmap.23) !"
             } elseif ($autoMount -eq 'n'){
                 Write-Output $langmap.60
