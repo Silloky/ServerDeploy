@@ -1,7 +1,8 @@
 param (
     [Parameter(Position = 0)]$path,
     [Parameter(Position = 1)]$csv,
-    [Parameter(Position = 2)]$cache
+    [Parameter(Position = 2)]$cache,
+    [Parameter(Position = 2)]$lang
 )
 $name = Split-Path -Path $path -Leaf
 $cacheLoc = $cache + "\$name"
@@ -11,16 +12,31 @@ if ((Test-Path -Path $cache) -eq $false){
 if ((Test-path -Path $csv) -eq $false){
     New-Item -Path $csv -ItemType File
 }
+if ($lang -eq "EN"){
+    $langmap = @{
+        1 = "Successfully added $name to offline-access list !"
+        2 = "Your files will be available shortly"
+        3 = "Couldn't add $name to offline-access list !"
+        4 = "Folder is already being backed up !"
+    }
+} elseif ($lang -eq "FR") {
+    $langmap = @{
+        1 = "$name a bien été ajouté à la liste d'accès hors-ligne !"
+        2 = "Vos fichiers seront disponibles dans peu de temps"
+        3 = "Nous n'avons pas pu ajouter $name à la liste d'accès hors-ligne !"
+        4 = "Le dossier n'est pas synchronisé !"
+    }
+}
 if ((Test-Path -Path $cacheLoc) -eq $false){
     New-Item -Path $cacheLoc -ItemType Directory
     $outputLine = "$cacheLoc,$path"
     $outputLine | out-file $csv -Encoding ascii -Force -Append
     New-Item -Path $cacheLoc\file -ItemType File
     $image = New-BTImage -Source "$PSScriptRoot\icons\information.ico" -Crop None
-    New-BurntToastNotification -Text "Successfully added $name to offline-access list !","Your files will be available shortly." -AppLogo $image
+    New-BurntToastNotification -Text "$($langmap.1)","$($langmap.2)" -AppLogo $image
 } else {
     $image = New-BTImage -Source "$PSScriptRoot\icons\cross.ico" -Crop None
-    New-BurntToastNotification -Text "Couldn't add $name to offline-access list !","Folder is already being backed up !" -AppLogo $image
+    New-BurntToastNotification -Text "$($langmap.3)","$($langmap.4)" -AppLogo $image
 }
 
 

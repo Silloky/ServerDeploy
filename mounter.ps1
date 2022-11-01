@@ -83,9 +83,9 @@ do {
                     Remove-Item -Path $mountPoint -Force -Confirm:$false
                     if ($null -ne $dirsToCreate){
                         $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
-                        Remove-Item -Path $dirsToCreate[0] -Recurse -Confirm:$false -Force
+                        cmd.exe /c "rmdir /s /q $($dirsToCreate[0])"
                     }
-                    Remove-Item -Path "$env:TEMP\SFTPMount" -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Force
+                    cmd.exe /c "rmdir /s /q $env:TEMP\SFTPMount)"
                     foreach ($item in (subst.exe)){
                         $item = $item.Split("\")[0]
                         mountAsLetter -letter $item -Remove
