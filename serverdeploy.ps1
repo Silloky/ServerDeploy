@@ -665,7 +665,7 @@ if ($NewInstallation -eq $true){
                     }
                     creatingLoading -createType "file" -createpath "$currentFolder\submounts\mountgeneral$username.bat" -createname "mountgeneral$username.bat" -lang "$lang"
                     if ($type -eq "drive"){
-                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname $($langmap.43) --vfs-cache-mode writes" 
+                        Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname `"$($langmap.43)`" --vfs-cache-mode writes" 
                     } elseif ($type -eq "folder"){
                         Add-Content -Path "$currentFolder\submounts\mountgeneral$username.bat" -Value "`"$binairiesDir\ServerDeploy\SFTPmount\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --vfs-cache-mode writes" 
                     }
