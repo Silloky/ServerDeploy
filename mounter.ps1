@@ -1,9 +1,9 @@
-param (
-    $vbsLocation,
-    $submountsLocation,
-    $cacheLocation,
-    $confLocation,
-    $lang
+﻿param (
+    [Parameter(Mandatory=$true,Position=0)]$vbsLocation,
+    [Parameter(Mandatory=$true,Position=1)]$submountsLocation,
+    [Parameter(Mandatory=$true,Position=2)]$cacheLocation,
+    [Parameter(Mandatory=$true,Position=3)]$confLocation,
+    [Parameter(Mandatory=$true,Position=4)]$lang
 )
 
 function mountAsLetter {
@@ -56,6 +56,7 @@ function Compare-Hashtable {
     $Results 
 }
 
+$ErrorActionPreference = 'SilentlyContinue' 
 $rcloneRunning = $false
 $offlineMount = $false
 
@@ -95,7 +96,13 @@ do {
             }
         }
         if ($rcloneRunning -eq $false){
-            Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
+            Start-Job -ScriptBlock {
+                param (
+                    $vbsLocation,
+                    $submountsLocation
+                )
+                $null = Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
+            } -ArgumentList $vbsLocation, $submountsLocation
             $rcloneRunning = $true
             Start-Sleep 20
         }
@@ -259,7 +266,7 @@ do {
             }
             $oldA = $aContent
             $oldB = $bContent
-            echo "Synced"
+#            Write-Output "Synced"
         }
     } else {
         if ($rcloneRunning -eq $true){
@@ -305,11 +312,11 @@ do {
                     New-Item -Path $mountPoint -ItemType Junction -Target $cache
                 }
                 $offlineMount = $true
-                echo "Mounted"
+#                Write-Output "Mounted"
             }
         }
     }
     $oldConfig = $config
     Start-Sleep 20
-    echo "Done"
+#    Write-Output "Done"
 } while ($true)

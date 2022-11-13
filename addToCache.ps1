@@ -4,6 +4,7 @@ param (
     [Parameter(Position = 2)]$cache,
     [Parameter(Position = 2)]$lang
 )
+[system.Text.Encoding]::ASCII
 $name = Split-Path -Path $path -Leaf
 $cacheLoc = $cache + "\$name"
 if ((Test-Path -Path $cache) -eq $false){
@@ -11,6 +12,7 @@ if ((Test-Path -Path $cache) -eq $false){
 }
 if ((Test-path -Path $csv) -eq $false){
     New-Item -Path $csv -ItemType File
+    Add-Content -Path $csv -Value "cache,server"
 }
 if ($lang -eq "EN"){
     $langmap = @{
@@ -21,10 +23,10 @@ if ($lang -eq "EN"){
     }
 } elseif ($lang -eq "FR") {
     $langmap = @{
-        1 = "$name a bien été ajouté à la liste d'accès hors-ligne !"
+        1 = "$name a bien ete ajoute a la liste d'acces hors-ligne !"
         2 = "Vos fichiers seront disponibles dans peu de temps"
-        3 = "Nous n'avons pas pu ajouter $name à la liste d'accès hors-ligne !"
-        4 = "Le dossier n'est pas synchronisé !"
+        3 = "Nous n'avons pas pu ajouter $name a la liste d'acces hors-ligne !"
+        4 = "Le dossier n'est pas synchronise !"
     }
 }
 if ((Test-Path -Path $cacheLoc) -eq $false){
@@ -38,9 +40,3 @@ if ((Test-Path -Path $cacheLoc) -eq $false){
     $image = New-BTImage -Source "$PSScriptRoot\icons\cross.ico" -Crop None
     New-BurntToastNotification -Text "$($langmap.3)","$($langmap.4)" -AppLogo $image
 }
-
-
-
-
-
-
