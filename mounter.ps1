@@ -56,6 +56,7 @@ function Compare-Hashtable {
     $Results 
 }
 
+Remove-Variable 
 $ErrorActionPreference = 'SilentlyContinue' 
 $rcloneRunning = $false
 $offlineMount = $false
@@ -81,12 +82,12 @@ do {
                 if ($mountPoint.length -eq 2){
                     mountAsLetter -letter $mountPoint -Remove
                 } else {
-                    Remove-Item -Path $mountPoint -Force -Confirm:$false
                     if ($null -ne $dirsToCreate){
                         $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
-                        cmd.exe /c "rmdir /s /q $($dirsToCreate[0])"
+                        $currentDeletion = $dirsToCreate[0]
+                        cmd.exe /c "rmdir /s /q $currentDeletion" | Out-Null
                     }
-                    cmd.exe /c "rmdir /s /q $env:TEMP\SFTPMount)"
+                    cmd.exe /c "rmdir /s /q $env:TEMP\SFTPMount" | Out-Null
                     foreach ($item in (subst.exe)){
                         $item = $item.Split("\")[0]
                         mountAsLetter -letter $item -Remove
@@ -102,7 +103,7 @@ do {
                     $submountsLocation
                 )
                 $null = Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
-            } -ArgumentList $vbsLocation, $submountsLocation
+            } -ArgumentList $vbsLocation, $submountsLocation | Out-Null
             $rcloneRunning = $true
             Start-Sleep 20
         }
@@ -270,7 +271,9 @@ do {
         }
     } else {
         if ($rcloneRunning -eq $true){
-            taskkill.exe /IM rclone.exe /F
+            Start-Job -ScriptBlock {
+                taskkill.exe /IM rclone.exe /F
+            } | Out-Null
             $rcloneRunning = $false
         }
         if ($offlineMount -eq $false){
