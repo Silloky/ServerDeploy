@@ -604,14 +604,17 @@ if ($NewInstallation -eq $true){
                         $selectedshareoption = $_;
                         Write-Output $shareoptionequivalencemap[$selectedshareoption]
                     }
+                    $times = 0
                     foreach ($outshareoptions_current in $outshareoptionsarray){
-                        creatingLoading -createType "file" -createpath "$currentDataFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
-                        Add-Content -Path "$currentDataFolder\submounts\$outshareoptions_current.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$outshareoptions_current `"$shareLocation\$($langmap.33) $($sharenameequivalencemap[$outshareoptions_current])`" --vfs-cache-mode writes"
+                        if ($times -ne 0){
+                            creatingLoading -createType "file" -createpath "$currentDataFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
+                            Add-Content -Path "$currentDataFolder\submounts\$outshareoptions_current.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$outshareoptions_current `"$shareLocation\$($langmap.33) $($sharenameequivalencemap[$outshareoptions_current])`" --vfs-cache-mode writes"
+                        }
                     }
                     $shortcut = Read-Host $langmap.39
                     if (($shortcut -eq "y") -or ($shortcut -eq "o")){
                         $desktop = [Environment]::GetFolderPath('Desktop')
-                        creatingLoading -createType "shortcut" -createpath "$desktop\$($langmap.33)s.lnk" -shortcutDestPath "$shareLocation" -shortcutIconPath "shell32.dll,158" -lang $lang
+                        creatingLoading -createType "shortcut" -createpath "$desktop\$($langmap.33).lnk" -shortcutDestPath "$shareLocation" -shortcutIconPath "shell32.dll,158" -lang $lang
                     }
                 }
                 if ($NASfoldersOptions_current -eq '2'){
@@ -653,7 +656,7 @@ if ($NewInstallation -eq $true){
                         if ((Test-Path -Path "$backupsLocation") -eq $false) {
                             $backupsLocation = Get-ChildItem function:[i-z]: -n | Where-Object{ !(test-path $_) } | Select-Object -First 1
                         }
-                        Write-Output "$($langmap.49) $generalLocation $($langmap.50) `"Backups`""
+                        Write-Output "$($langmap.49) $backupsLocation $($langmap.50) `"Backups`""
                     } else {
                         $type = "folder"
                         $backupsLocation = "$env:userprofile\Backups"
