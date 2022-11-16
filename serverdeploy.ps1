@@ -283,17 +283,17 @@ function dlGitHub {
     )
     #language setup
     $enlangmap = @{
-        1 = "Determining latest release"
+        1 = "Determining latest release of"
         2 = "Done !"
-        3 = "Downloading latest release"
+        3 = "Downloading latest release of"
         4 = "Extracting archive (zip)"
         5 = "Cleaning up"
     }
 
     $frlangmap = @{
-        1 = "Détermination de la dernière version"
+        1 = "Détermination de la dernière version de"
         2 = "Terminé !"
-        3 = "Téléchargement de la dernière version"
+        3 = "Téléchargement de la dernière version de"
         4 = "Extraction de l'archive (zip)"
         5 = "Nettoyage"
     }
@@ -318,22 +318,22 @@ function dlGitHub {
     $timesofpoint = 0
     do {
         Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[.] $($langmap.1)..."
+        Write-Host -NoNewline "`r[.] $($langmap.1) $file..."
         Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[ ] $($langmap.1)..."
+        Write-Host -NoNewline "`r[ ] $($langmap.1) $file..."
         $timesofpoint = $timesofpoint + 1
     } until ($timesofpoint -eq 2)
     $id = ((Invoke-WebRequest $releases -Headers $headers | ConvertFrom-Json)[0].assets | Where-Object { $_.name -eq $file })[0].id
     $versionCode = (Invoke-WebRequest $releases -Headers $headers | ConvertFrom-Json)[0].tag_name
-    Write-Host "`r[✓] $($langmap.1)... $($langmap.2) ($versionCode)"
+    Write-Host "`r[✓] $($langmap.1) $file... $($langmap.2) ($versionCode)"
 
     #download
     $timesofpoint = 0
     do {
         Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[.] $($langmap.3)..."
+        Write-Host -NoNewline "`r[.] $($langmap.3) $file..."
         Start-Sleep -Milliseconds 400
-        Write-Host -NoNewline "`r[ ] $($langmap.3)..."
+        Write-Host -NoNewline "`r[ ] $($langmap.3) $file..."
         $timesofpoint = $timesofpoint + 1
     } until ($timesofpoint -eq 2)
     $credentials = Decrypt -EncryptedString "$token" -EncryptionKey $Key
@@ -346,7 +346,7 @@ function dlGitHub {
     $download = "https://" + $credentials + ":@api.github.com/repos/$repo/releases/assets/$id"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri "$download" -Headers $headers -OutFile $downloadPath
-    Write-Host "`r[✓] $($langmap.3)... $($langmap.2) ($versionCode)"
+    Write-Host "`r[✓] $($langmap.3) $file... $($langmap.2) ($versionCode)"
     $headers = $null
 
     #extract archive or move file
@@ -354,13 +354,13 @@ function dlGitHub {
         $timesofpoint = 0
         do {
             Start-Sleep -Milliseconds 400
-            Write-Host -NoNewline "`r[.] $($langmap.4)..."
+            Write-Host -NoNewline "`r[.] $($langmap.4) $file..."
             Start-Sleep -Milliseconds 400
-            Write-Host -NoNewline "`r[ ] $($langmap.4)..."
+            Write-Host -NoNewline "`r[ ] $($langmap.4) $file..."
             $timesofpoint = $timesofpoint + 1
         } until ($timesofpoint -eq 2)
         Expand-Archive $downloadPath -DestinationPath $endLocation -Force
-        Write-Host "`r[✓] $($langmap.4)... $($langmap.2)"
+        Write-Host "`r[✓] $($langmap.4) $file... $($langmap.2)"
     } else {
         Copy-Item -Path "$downloadPath" -Destination "$endLocation"
     }
