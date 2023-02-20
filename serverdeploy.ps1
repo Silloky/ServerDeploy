@@ -608,7 +608,7 @@ if ($NewInstallation -eq $true){
                     foreach ($outshareoptions_current in $outshareoptionsarray){
                         if ($times -ne 0){
                             creatingLoading -createType "file" -createpath "$currentDataFolder\submounts\$outshareoptions_current.bat" -createname "$outshareoptions_current.bat" -lang "$lang"
-                            Add-Content -Path "$currentDataFolder\submounts\$outshareoptions_current.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$outshareoptions_current `"$shareLocation\$($langmap.33) $($sharenameequivalencemap[$outshareoptions_current])`" --vfs-cache-mode writes"
+                            Add-Content -Path "$currentDataFolder\submounts\$outshareoptions_current.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$outshareoptions_current `"$shareLocation\$($langmap.33) $($sharenameequivalencemap[$outshareoptions_current])`" --vfs-cache-mode full"
                         }
                     }
                     $shortcut = Read-Host $langmap.39
@@ -637,9 +637,9 @@ if ($NewInstallation -eq $true){
                     }
                     creatingLoading -createType "file" -createpath "$currentDataFolder\submounts\mountgeneral$username.bat" -createname "mountgeneral$username.bat" -lang "$lang"
                     if ($type -eq "drive"){
-                        Add-Content -Path "$currentDataFolder\submounts\mountgeneral$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname `"$($langmap.43)`" --vfs-cache-mode writes" 
+                        Add-Content -Path "$currentDataFolder\submounts\mountgeneral$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --volname `"$($langmap.43)`" --vfs-cache-mode full" 
                     } elseif ($type -eq "folder"){
-                        Add-Content -Path "$currentDataFolder\submounts\mountgeneral$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --vfs-cache-mode writes" 
+                        Add-Content -Path "$currentDataFolder\submounts\mountgeneral$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/general-$username `"$generalLocation`" --vfs-cache-mode full" 
                     }
                     
                     $shortcut = Read-Host "$($langmap.47) $type $($langmap.48)"
@@ -669,7 +669,7 @@ if ($NewInstallation -eq $true){
                     $backupname = $username + "-backup"
                     creatingLoading -createType "file" -createpath "$currentDataFolder\submounts\mountbackups$username.bat" -createname "mountbackups$username.bat" -lang "$lang"
                     if ($type -eq "drive"){
-                        Add-Content -Path "$currentDataFolder\submounts\mountbackups$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`" --volname `"Backups`" --vfs-cache-mode writes"
+                        Add-Content -Path "$currentDataFolder\submounts\mountbackups$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`" --volname `"Backups`" --vfs-cache-mode full"
                     } elseif ($type -eq "folder"){
                         Add-Content -Path "$currentDataFolder\submounts\mountbackups$username.bat" -Value "`"$currentFolder\rclone.exe`" mount sftp-nas:/$backupname `"$backupsLocation`""
                     }
