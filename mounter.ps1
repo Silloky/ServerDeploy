@@ -56,7 +56,7 @@ function Compare-Hashtable {
     $Results 
 }
 
-$ErrorActionPreference = 'SilentlyContinue' 
+
 $rcloneRunning = $false
 $offlineMount = $false
 
@@ -96,13 +96,7 @@ do {
             }
         }
         if ($rcloneRunning -eq $false){
-            Start-Job -ScriptBlock {
-                param (
-                    $vbsLocation,
-                    $submountsLocation
-                )
-                $null = Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
-            } -ArgumentList $vbsLocation, $submountsLocation
+            Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
             $rcloneRunning = $true
             Start-Sleep 20
         }
@@ -266,7 +260,7 @@ do {
             }
             $oldA = $aContent
             $oldB = $bContent
-#            Write-Output "Synced"
+            Write-Output "Synced"
         }
     } else {
         if ($rcloneRunning -eq $true){
@@ -312,11 +306,11 @@ do {
                     New-Item -Path $mountPoint -ItemType Junction -Target $cache
                 }
                 $offlineMount = $true
-#                Write-Output "Mounted"
+                Write-Output "Mounted"
             }
         }
     }
     $oldConfig = $config
     Start-Sleep 20
-#    Write-Output "Done"
+    Write-Output "Done"
 } while ($true)
