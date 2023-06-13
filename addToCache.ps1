@@ -31,7 +31,7 @@ if ($lang -eq "EN"){
 }
 if ((Test-Path -Path $cacheLoc) -eq $false){
     New-Item -Path $cacheLoc -ItemType Directory
-    $outputLine = "$cacheLoc,$path"
+    $outputLine = "`n$cacheLoc,$path"
     $outputLine | out-file $csv -Encoding ascii -Force -Append
     New-Item -Path $cacheLoc\file -ItemType File
     $image = New-BTImage -Source "$PSScriptRoot\icons\information.ico" -Crop None

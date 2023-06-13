@@ -62,11 +62,13 @@ $offlineMount = $false
 
 do {
     $csv=import-csv $confLocation
-    $headers=$csv[0].psobject.properties.name
-    $key=$headers[0]
-    $value=$headers[1]
     $config = @{}
-    $csv | ForEach-Object {$config[$_."$key"] = $_."$value"}
+    if ($null -ne $csv){
+        $headers=$csv[0].psobject.properties.name
+        $key=$headers[0]
+        $value=$headers[1]
+        $csv | ForEach-Object {$config[$_."$key"] = $_."$value"}
+    }
     $networkavailable = $false;
     foreach ($adapter in get-NetAdapter){
         if ($adapter.status -eq "Up"){
@@ -81,7 +83,7 @@ do {
                 if ($mountPoint.length -eq 2){
                     mountAsLetter -letter $mountPoint -Remove
                 } else {
-                    Remove-Item -Path $mountPoint -Force -Confirm:$false
+                    (Get-Item -Path $mountPoint).Delete()
                     if ($null -ne $dirsToCreate){
                         $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
                         cmd.exe /c "rmdir /s /q $($dirsToCreate[0])"
@@ -98,169 +100,172 @@ do {
         if ($rcloneRunning -eq $false){
             Invoke-Expression -Command "cscript.exe `"$vbsLocation`" `"$submountsLocation`""
             $rcloneRunning = $true
-            Start-Sleep 20
+            Start-Sleep 10
         }
-        foreach ($cache in $config.Keys){
-            $server = $config[$cache]
-            $a = $server
-            $b = $cache
-            $aContent = Get-ChildItem -Recurse -Path $a
-            $bContent = Get-ChildItem -Recurse -Path $b
-            if (($null -ne $oldA) -and ($null -ne $oldB)){
-                $removes = New-Object System.Collections.ArrayList
-                foreach ($item in $oldA.FullName){
-                    if ($item -notin $aContent.FullName){
-                        if ((Test-Path -Path $item.Replace($a,$b)) -eq $true){
-                            $null = $removes.Add($item.Replace($a,$b))
+        if ($null -ne $config.Keys){
+
+            foreach ($cache in $config.Keys){
+                $server = $config[$cache]
+                $a = $server
+                $b = $cache
+                $aContent = Get-ChildItem -Recurse -Path $a
+                $bContent = Get-ChildItem -Recurse -Path $b
+                if (($null -ne $oldA) -and ($null -ne $oldB)){
+                    $removes = New-Object System.Collections.ArrayList
+                    foreach ($item in $oldA.FullName){
+                        if ($item -notin $aContent.FullName){
+                            if ((Test-Path -Path $item.Replace($a,$b)) -eq $true){
+                                $null = $removes.Add($item.Replace($a,$b))
+                            }
+                        }
+                    }
+                    foreach ($item in $oldB.FullName){
+                        if ($item -notin $bContent.FullName){
+                            if ((Test-Path -Path $item.Replace($b,$a)) -eq $true){
+                                $null = $removes.Add($item.Replace($b,$a))
+                            }
+                        }
+                    }
+                    $foldersRemoves = New-Object System.Collections.ArrayList
+                    if ($null -ne $removes){
+                        foreach ($item in $removes){
+                            if ((Get-Item -Path $item) -is [System.IO.FileInfo]){
+                                Remove-Item -Path $item
+                            } else {
+                                $null = $foldersRemoves.Add($item)
+                            }
+                        }
+                        if ($null -ne $foldersRemoves){
+                            $foldersRemoves = $foldersRemoves | Sort-Object { $_.length } -Descending
+                            foreach ($folder in $foldersRemoves){
+                                Remove-Item -Path $folder
+                            }
                         }
                     }
                 }
-                foreach ($item in $oldB.FullName){
-                    if ($item -notin $bContent.FullName){
-                        if ((Test-Path -Path $item.Replace($b,$a)) -eq $true){
-                            $null = $removes.Add($item.Replace($b,$a))
+            
+                $aContent = Get-ChildItem -Recurse -Path $a
+                $bContent = Get-ChildItem -Recurse -Path $b
+                $differences = Compare-Object -ReferenceObject $bContent -DifferenceObject $aContent -IncludeEqual
+                $copies = @{}
+                foreach ($item in $differences){
+                    $path = $item.InputObject.FullName
+                    $direction = $item.SideIndicator
+                    if ($direction -eq "=>"){
+                        $altPath = $path.Replace($a,$b)
+                        $aPath = $path
+                        $bPath = $path.Replace($a,$b)
+                        $copies.Add($path,$altPath)
+                    }
+                    if ($direction -eq "<="){
+                        $altPath = $path.Replace($b,$a)
+                        $aPath = $path.Replace($b,$a)
+                        $bPath = $path
+                        $copies.Add($path,$altPath)
+                    }
+                    if ($direction -eq "=="){
+                        $altPath = $path.Replace($b,$a)
+                        $aPath = $path.Replace($b,$a)
+                        $bPath = $path
+                        $aDate = [datetime](Get-ItemProperty -Path $aPath -Name LastWriteTime).LastWriteTime
+                        $bDate = [datetime](Get-ItemProperty -Path $bPath -Name LastWriteTime).LastWriteTime
+                        if ((Get-Item -Path $path) -isnot [System.IO.DirectoryInfo]){
+                            if ($aDate -gt $bDate){
+                                $path = $aPath
+                                $altpath = $bPath
+                                $copies.Add($path,$altPath)
+                            } elseif ($bDate -gt $aDate) {
+                                $path = $bPath
+                                $altPath = $aPath
+                                $copies.Add($path,$altPath)
+                            }
                         }
                     }
                 }
-                $foldersRemoves = New-Object System.Collections.ArrayList
-                if ($null -ne $removes){
-                    foreach ($item in $removes){
-                        if ((Get-Item -Path $item) -is [System.IO.FileInfo]){
-                            Remove-Item -Path $item
-                        } else {
-                            $null = $foldersRemoves.Add($item)
+                $dirsToCreate = New-Object System.Collections.ArrayList
+                if ($null -ne $copies){
+                    foreach ($inItem in $copies.Keys){
+                        $outItem = $copies[$inItem]
+                        $slashCount = ($outItem.ToCharArray() | Where-Object {$_ -eq '\'} | Measure-Object).Count
+                        $times = 0
+                        do {
+                            if ($times -eq 0){
+                                $lastSlash = $outItem.LastIndexOf("\")
+                                $dirToTest = $outItem.Substring(0,$lastSlash)
+                            } else {
+                                $lastSlash = $dirToTest.LastIndexOf("\") 
+                                $dirToTest = $dirToTest.Substring(0,$lastSlash)
+                            }
+                            if ((Test-Path -Path $dirToTest) -eq $false){
+                                $null = $dirsToCreate.Add($dirToTest)
+                            }
+                            $times = $times + 1
+                        } until ($times -eq $slashCount)
+                    }
+                    if ($null -ne $dirsToCreate){
+                        $dirsToCreate = $dirsToCreate | Select-Object -Unique
+                        $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
+                    }
+                    foreach ($folder in $dirsToCreate){
+                        foreach ($Key in ($copies.GetEnumerator() | Where-Object {$_.Value -eq "$folder"})){
+                            $copies.Remove($Key.Key)
                         }
+                        New-Item -Path $folder -ItemType Directory
                     }
-                    if ($null -ne $foldersRemoves){
-                        $foldersRemoves = $foldersRemoves | Sort-Object { $_.length } -Descending
-                        foreach ($folder in $foldersRemoves){
-                            Remove-Item -Path $folder
+                    if ((Compare-Hashtable -Left $oldConfig -Right $config).key -eq $cache){
+                        $showNotification = $true
+                        [float]$totalSize = 0
+                        foreach ($origin in $copies.Keys){
+                            $totalSize = $totalSize + (Get-Item -Path $origin).length/1KB
                         }
-                    }
-                }
-            }
-        
-            $aContent = Get-ChildItem -Recurse -Path $a
-            $bContent = Get-ChildItem -Recurse -Path $b
-            $differences = Compare-Object -ReferenceObject $bContent -DifferenceObject $aContent -IncludeEqual
-            $copies = @{}
-            foreach ($item in $differences){
-                $path = $item.InputObject.FullName
-                $direction = $item.SideIndicator
-                if ($direction -eq "=>"){
-                    $altPath = $path.Replace($a,$b)
-                    $aPath = $path
-                    $bPath = $path.Replace($a,$b)
-                    $copies.Add($path,$altPath)
-                }
-                if ($direction -eq "<="){
-                    $altPath = $path.Replace($b,$a)
-                    $aPath = $path.Replace($b,$a)
-                    $bPath = $path
-                    $copies.Add($path,$altPath)
-                }
-                if ($direction -eq "=="){
-                    $altPath = $path.Replace($b,$a)
-                    $aPath = $path.Replace($b,$a)
-                    $bPath = $path
-                    $aDate = [datetime](Get-ItemProperty -Path $aPath -Name LastWriteTime).LastWriteTime
-                    $bDate = [datetime](Get-ItemProperty -Path $bPath -Name LastWriteTime).LastWriteTime
-                    if ((Get-Item -Path $path) -isnot [System.IO.DirectoryInfo]){
-                        if ($aDate -gt $bDate){
-                            $path = $aPath
-                            $altpath = $bPath
-                            $copies.Add($path,$altPath)
-                        } elseif ($bDate -gt $aDate) {
-                            $path = $bPath
-                            $altPath = $aPath
-                            $copies.Add($path,$altPath)
-                        }
-                    }
-                }
-            }
-            $dirsToCreate = New-Object System.Collections.ArrayList
-            if ($null -ne $copies){
-                foreach ($inItem in $copies.Keys){
-                    $outItem = $copies[$inItem]
-                    $slashCount = ($outItem.ToCharArray() | Where-Object {$_ -eq '\'} | Measure-Object).Count
-                    $times = 0
-                    do {
-                        if ($times -eq 0){
-                            $lastSlash = $outItem.LastIndexOf("\")
-                            $dirToTest = $outItem.Substring(0,$lastSlash)
-                        } else {
-                            $lastSlash = $dirToTest.LastIndexOf("\") 
-                            $dirToTest = $dirToTest.Substring(0,$lastSlash)
-                        }
-                        if ((Test-Path -Path $dirToTest) -eq $false){
-                            $null = $dirsToCreate.Add($dirToTest)
-                        }
-                        $times = $times + 1
-                    } until ($times -eq $slashCount)
-                }
-                if ($null -ne $dirsToCreate){
-                    $dirsToCreate = $dirsToCreate | Select-Object -Unique
-                    $dirsToCreate = $dirsToCreate | Sort-Object { $_.length }
-                }
-                foreach ($folder in $dirsToCreate){
-                    foreach ($Key in ($copies.GetEnumerator() | Where-Object {$_.Value -eq "$folder"})){
-                        $copies.Remove($Key.Key)
-                    }
-                    New-Item -Path $folder -ItemType Directory
-                }
-                if ((Compare-Hashtable -Left $oldConfig -Right $config).key -eq $cache){
-                    $showNotification = $true
-                    [float]$totalSize = 0
-                    foreach ($origin in $copies.Keys){
-                        $totalSize = $totalSize + (Get-Item -Path $origin).length/1KB
-                    }
-                }
-                if ($showNotification){
-                    $langmap = @{}
-                    $enlangmap = @{
-                        1 = "Copying progress :"
-                        2 = "Downloading..."
-                        3 = "Downloading your files..."
-                        4 = "Your files are being downloaded so they can be available offline."
-                        5 = "Done !"
-                        6 = "Your files are now available offline."
-                    }
-                    if ($lang -eq "EN"){
-                        $langmap = $enlangmap
-                    } elseif ($lang -eq "FR"){
-                        $langmap = $frlangmap
-                    }
-                    $progress = New-BTProgressBar -Title "$($langmap.1)" -Status "$($langmap.2)" -Value 'value'
-                    $image = New-BTImage -Source "$PSScriptRoot\icons\shell32_16739.ico" -Crop None
-                    $button = New-BTButton -Dismiss -Content "OK"
-                    $binding = @{
-                        value = 0
-                    }
-                    New-BurntToastNotification -Text "$($langmap.3)", "$($langmap.4)" -DataBinding $binding -UniqueIdentifier "001" -ProgressBar $progress -AppLogo $image -ExpirationTime (Get-Date).AddDays(1) 
-                    $totalCopied = 0
-                }
-                foreach ($origin in $copies.Keys){
-                    $end = $copies[$origin]
-                    if ((Get-Item -Path $path) -isnot [System.IO.DirectoryInfo]){
-                        Copy-Item -Path $origin -Destination $end
-                    } else {
-                        Copy-Item -Path $origin -Destination $end -Container
                     }
                     if ($showNotification){
-                        $totalCopied = $totalCopied + (Get-Item -Path $origin).length/1KB
-                        $binding['value'] = $totalCopied/$totalSize
-                        $null = Update-BTNotification -UniqueIdentifier "001" -DataBinding $binding
+                        $langmap = @{}
+                        $enlangmap = @{
+                            1 = "Copying progress :"
+                            2 = "Downloading..."
+                            3 = "Downloading your files..."
+                            4 = "Your files are being downloaded so they can be available offline."
+                            5 = "Done !"
+                            6 = "Your files are now available offline."
+                        }
+                        if ($lang -eq "EN"){
+                            $langmap = $enlangmap
+                        } elseif ($lang -eq "FR"){
+                            $langmap = $frlangmap
+                        }
+                        $progress = New-BTProgressBar -Title "$($langmap.1)" -Status "$($langmap.2)" -Value 'value'
+                        $image = New-BTImage -Source "$PSScriptRoot\icons\shell32_16739.ico" -Crop None
+                        $button = New-BTButton -Dismiss -Content "OK"
+                        $binding = @{
+                            value = 0
+                        }
+                        New-BurntToastNotification -Text "$($langmap.3)", "$($langmap.4)" -DataBinding $binding -UniqueIdentifier "001" -ProgressBar $progress -AppLogo $image -ExpirationTime (Get-Date).AddDays(1) 
+                        $totalCopied = 0
+                    }
+                    foreach ($origin in $copies.Keys){
+                        $end = $copies[$origin]
+                        if ((Get-Item -Path $path) -isnot [System.IO.DirectoryInfo]){
+                            Copy-Item -Path $origin -Destination $end
+                        } else {
+                            Copy-Item -Path $origin -Destination $end -Container
+                        }
+                        if ($showNotification){
+                            $totalCopied = $totalCopied + (Get-Item -Path $origin).length/1KB
+                            $binding['value'] = $totalCopied/$totalSize
+                            $null = Update-BTNotification -UniqueIdentifier "001" -DataBinding $binding
+                        }
+                    }
+                    if ($showNotification){
+                        Remove-BTNotification -UniqueIdentifier "001"
+                        New-BurntToastNotification -Text "$($langmap.5)", "$($langmap.6)" -AppLogo $image -Button $button
+                        $showNotification = $false
                     }
                 }
-                if ($showNotification){
-                    Remove-BTNotification -UniqueIdentifier "001"
-                    New-BurntToastNotification -Text "$($langmap.5)", "$($langmap.6)" -AppLogo $image -Button $button
-                    $showNotification = $false
-                }
+                $oldA = $aContent
+                $oldB = $bContent
+                Write-Output "Synced"
             }
-            $oldA = $aContent
-            $oldB = $bContent
-            Write-Output "Synced"
         }
     } else {
         if ($rcloneRunning -eq $true){
@@ -311,6 +316,6 @@ do {
         }
     }
     $oldConfig = $config
-    Start-Sleep 20
+    Start-Sleep 10
     Write-Output "Done"
 } while ($true)
