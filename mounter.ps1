@@ -1,4 +1,4 @@
-﻿param (
+param (
     [Parameter(Mandatory=$true,Position=0)]$vbsLocation,
     [Parameter(Mandatory=$true,Position=1)]$submountsLocation,
     [Parameter(Mandatory=$true,Position=2)]$cacheLocation,
@@ -6,19 +6,11 @@
     [Parameter(Mandatory=$true,Position=4)]$lang
 )
 
-function mountAsLetter {
-    param (
-        [Parameter(Mandatory=$true)]$letter,
-        $dirToMount,
-        [Parameter(Mandatory=$false)][Switch]$Add,
-        [Parameter(Mandatory=$false)][Switch]$Remove
-    )
-    if ($Add -eq $true){
-        subst.exe $letter "$dirToMount"
-    } elseif ($Remove -eq $true){
-        subst.exe /D $letter
+do {
+    $config = Get-Content -Path $confLocation | ConvertFrom-JSON
+    foreach ($cachedFolder in $config) {
+        Write-Output "hi"
     }
-}
 
 function Compare-Hashtable {
 [CmdletBinding()]
