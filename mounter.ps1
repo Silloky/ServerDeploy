@@ -1,7 +1,30 @@
-﻿param (
+param (
     [Parameter(Mandatory=$true,Position=0)]$dataDir,
     [Parameter(Mandatory=$true,Position=1)]$binDir
 )
+
+function createDirectories {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$FinalPath
+    )
+    $currentPath = $FinalPath
+    $lane = New-Object System.Collections.ArrayList
+    $lane.Add($currentPath)
+    do {
+        $currentPath = Split-Path -Path $currentPath -Parent
+        $lane.Add($currentPath)
+    } while ($currentPath.Length -gt 3)
+    $lane.Reverse()
+    foreach ($dir in $lane){
+        if (!(Test-Path -Path $dir)){
+            if ($dir -match '^([A-Za-z]:){1}$'){
+                return 'Must create drive letter first'
+            } else {
+                New-Item -ItemType Directory -Path $dir -
+            }
+        }
+    }
+}
 
 do {
     $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON
