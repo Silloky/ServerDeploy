@@ -1,4 +1,4 @@
-param (
+﻿param (
     [Parameter(Mandatory=$true,Position=0)]$dataDir,
     [Parameter(Mandatory=$true,Position=1)]$binDir
 )
@@ -63,21 +63,22 @@ function getCorrespodingMounter {
 }
 
 do {
-    $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON
+    $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON # Gets data from `config.json`
     
-    foreach ($cachedFolder in $config.cache) {
-        $cachedFolder.mountLocation = "test"
-    }
+    # foreach ($cachedFolder in $config.cache) {
+    #     $cachedFolder.mountLocation = "test"
+    # }
 
-    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50007).Wait(500)){
+    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50007).Wait(500)){ # Tests connection to SFTP port
         if ($canConnect -eq $false){
-            Write-Output 'Connection re-established'
+            Write-Output 'Connection re-established' # Prints to signal connection reestablishment
         }
         $canConnect = $true
 
-        foreach ($mounter in $config.mounts){
-            if ($mounter.enabled){
-                $mounter.processPID = Start-Job -Name $mounter.serverLoc -ScriptBlock {
+        foreach ($mounter in $config.mounts){ 
+            # $mounter is the current object
+            if ($mounter.enabled -and -not $mounter.running){ # checks properties before working
+                $mounter.processPID = Start-Job -Name $mounter.serverLoc -ScriptBlock { # Starts a background job and keeps the following process' PID
                     param (
                         [Parameter(Mandatory=$true,Position=0)]$mounter,
                         [Parameter(Mandatory=$true,Position=1)]$binDir
@@ -87,10 +88,11 @@ do {
                     if ($mounter.mountType -eq "drive") {
                         $arguments += " --volname $($mounter.volname)"
                     }
+                    # Creates the rclone mount string according to $mounter properties
                     $arguments += " --vfs-cache-mode $($mounter.vfsCacheMode)"
                     $processPid = (Start-Process -FilePath "$binDir\rclone.exe" -ArgumentList $arguments -WindowStyle Hidden -PassThru).Id
                     return $processPid
-                } -ArgumentList $mounter,$binDir | Wait-Job | Receive-Job
+                } -ArgumentList $mounter,$binDir | Wait-Job | Receive-Job # Receives the job result : in this case, the process PID
                 $mounter.running = $true
             }
         }
@@ -149,7 +151,7 @@ do {
 
 
 
-    Start-Sleep 20
+    Start-Sleep $config.properties.delay
 
 
 } while ($true)
