@@ -7,7 +7,7 @@ function createDirectories {
     param (
         [Parameter(Mandatory=$true,Position=0)]$FinalPath
     )
-    $currentPath = $FinalPath
+    $currentPath = Split-Path -Path $FinalPath -Parent
     $lane = New-Object System.Collections.ArrayList
     $lane.Add($currentPath)
     do {
@@ -15,14 +15,18 @@ function createDirectories {
         $lane.Add($currentPath)
     } while ($currentPath.Length -gt 3)
     $lane.Reverse()
+    Write-Output $lane
     foreach ($dir in $lane){
         if (!(Test-Path -Path $dir)){
-            if ($dir -match '^([A-Za-z]:){1}$'){
-                return 'Must create drive letter first'
+            if ($dir -match '^([A-Za-z]:\\){1}$'){
+                throw [System.IO.DriveNotFoundException] 'Unknown drive letter'
             } else {
-                New-Item -ItemType Directory -Path $dir -
+                New-Item -ItemType Directory -Path $dir
             }
         }
+    }
+}
+
     }
 }
 
