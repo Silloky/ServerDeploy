@@ -78,6 +78,23 @@ do {
                 $mounter.running = $true
             }
         }
+
+        foreach ($cache in $config.cache){
+            if ($cache.enabled){
+                $correspondingMount = getCorrespodingMounter -Name $cache.name -Mounters $config.mounts # gets the mounter where the name (id) corresponds
+                if ($correspondingMount.enabled){ # only executes if the corresponding mounter is set to be enabled
+                    if ($cache.cacheLocation -eq ''){
+                        $cacheLocation = "$dataDir\offline_cache" + '\' + $cache.name
+                    } else {
+                        $cacheLocation = $cache.cacheLocation + '\' + $cache.name # allows for custom cache space
+                    }
+                    $mountLocation = $correspondingMount.mountLocation
+                    Write-Output $cacheLocation
+                    Write-Output $mountLocation
+                }
+                # SYNCING CODE
+            }
+        }
     } else {
         $canConnect = $false
         Write-Output 'No connection'
@@ -86,6 +103,29 @@ do {
             if ($mounter.mounted){
                 Stop-Process -Id $mounter.processPID
                 $mounter.mounted = $false
+            }
+        }
+
+        foreach ($cache in $config.cache){
+            if ($cache.enabled){
+                $correspondingMount = getCorrespodingMounter -Name $cache.name -Mounters $config.mounts
+                if ($correspondingMount.enabled){
+                    if ($cache.cacheLocation -eq ''){
+                        $cacheLocation = "$dataDir\offline_cache" + '\' + $cache.name
+                    } else {
+                        $cacheLocation = $cache.cacheLocation + '\' + $cache.name
+                    }
+                    $mountLocation = $correspondingMount.mountLocation
+                    Write-Output $cacheLocation
+                    Write-Output $mountLocation
+                    
+                    $driveLetter = Split-Path -Path $mountLocation -Qualifier
+                    if (Test-Path $driveLetter){ # Tests the drive letter
+                        New-Item
+                    }
+                    createDirectories -FinalPath $mountLocation # creates the necessay directories to where the the cache should be mounted
+                    New-Item -ItemType SymbolicLink -Path (Split-Path -Path $mountLocation -Parent) -Name $cache.displayName -Value $cacheLocation
+                }
             }
         }
     }
