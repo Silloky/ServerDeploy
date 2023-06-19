@@ -27,6 +27,22 @@ function createDirectories {
     }
 }
 
+function createDrive {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Letter
+    )
+    New-Item -Path "$env:temp\SFTPMount" -Name $Letter -ItemType Directory # creates the directory in temp which hosts the virtual drive contents
+    subst.exe "${Letter}:" "$env:temp\SFTPMount\$Letter" # substitute the temp folder for the drive
+}
+
+function removeDrive {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Letter
+    )
+    if ($null -eq (Get-ChildItem -Path "${Letter}:")){
+        subst.exe "${Letter}:" /D
+    } else {
+        throw [System.IO.IOException] 'Drive not empty'
     }
 }
 
