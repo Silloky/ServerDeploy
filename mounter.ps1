@@ -7,12 +7,18 @@ function createDirectories {
     param (
         [Parameter(Mandatory=$true,Position=0)]$FinalPath
     )
-    $currentPath = Split-Path -Path $FinalPath -Parent
     $lane = New-Object System.Collections.ArrayList
+    $currentPath = $FinalPath
     $lane.Add($currentPath)
     do {
-        $currentPath = Split-Path -Path $currentPath -Parent
+        try {
+            $currentPath = Split-Path -Path $currentPath -Parent
+        }
+        catch {
+            $currentPath = Split-Path -Path $currentPath -Qualifier
+        }
         $lane.Add($currentPath)
+        Write-Output $currentPath
     } while ($currentPath.Length -gt 3)
     $lane.Reverse()
     Write-Output $lane
@@ -29,10 +35,15 @@ function createDirectories {
 
 function createDrive {
     param (
-        [Parameter(Mandatory=$true,Position=0)]$Letter
+        [Parameter(Mandatory=$true,Position=0)]$Letter,
+        [Parameter(Mandatory=$true,Position=1)]$Label
     )
-    New-Item -Path "$env:temp\SFTPMount" -Name $Letter -ItemType Directory # creates the directory in temp which hosts the virtual drive contents
     subst.exe "${Letter}:" "$env:temp\SFTPMount\$Letter" # substitute the temp folder for the drive
+    $driveKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\$Letter"
+    if (!(Test-Path -Path $driveKey)) {
+        New-Item -Path $driveKey -Force
+    }
+    Set-ItemProperty -Path $driveKey -Name "_LabelFromReg" -Value $Label
 }
 
 function removeDrive {
@@ -69,7 +80,7 @@ do {
     #     $cachedFolder.mountLocation = "test"
     # }
 
-    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50007).Wait(500)){ # Tests connection to SFTP port
+    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50023).Wait(500)){ # Tests connection to SFTP port
         if ($canConnect -eq $false){
             Write-Output 'Connection re-established' # Prints to signal connection reestablishment
         }
@@ -86,7 +97,7 @@ do {
                     $arguments = ""
                     $arguments += "mount $($mounter.rcloneProfile):/$($mounter.serverLoc) $($mounter.mountLocation)"
                     if ($mounter.mountType -eq "drive") {
-                        $arguments += " --volname $($mounter.volname)"
+                        $arguments += " --volname $($mounter.displayName)"
                     }
                     # Creates the rclone mount string according to $mounter properties
                     $arguments += " --vfs-cache-mode $($mounter.vfsCacheMode)"
@@ -133,16 +144,30 @@ do {
                     } else {
                         $cacheLocation = $cache.cacheLocation + '\' + $cache.name
                     }
-                    $mountLocation = $correspondingMount.mountLocation
+                    $mountLocation = $correspondingMount.mountLocation + $cache.mountLocation
+                    if ($mountLocation.Length -eq 3){
+                        $driveRoot = $true
+                    } else {
+                        $driveRoot = $false
+                    }
                     Write-Output $cacheLocation
                     Write-Output $mountLocation
                     
                     $driveLetter = Split-Path -Path $mountLocation -Qualifier
-                    if (Test-Path $driveLetter){ # Tests the drive letter
-                        New-Item
+                    $driveLetter = $driveLetter.Substring(0,$driveLetter.Length-1)
+                    if (-not (Test-Path "${driveLetter}:\")){ # Tests the drive letter
+                        if ($driveRoot){
+                            New-Item -ItemType Junction -Path "$env:temp\SFTPMount" -Name $driveLetter -Value $cacheLocation
+                        } elseif (-not $driveRoot) {
+                            New-Item -Path "$env:temp\SFTPMount" -Name $driveLetter -ItemType Directory # creates the directory in temp which hosts the virtual drive contents
+                        }
+                        createDrive -Letter $driveLetter -Label $correspondingMount.displayName
                     }
-                    createDirectories -FinalPath $mountLocation # creates the necessay directories to where the the cache should be mounted
-                    New-Item -ItemType SymbolicLink -Path (Split-Path -Path $mountLocation -Parent) -Name $cache.displayName -Value $cacheLocation
+                    if (-not $driveRoot){
+                        createDirectories -FinalPath $mountLocation # creates the necessary directories to where the the cache should be mounted
+                        $name = $cache.displayName
+                        New-Item -ItemType Junction -Path "$mountLocation\$name" -Value $cacheLocation
+                    }
                 }
             }
         }
@@ -151,7 +176,7 @@ do {
 
 
 
-    Start-Sleep $config.properties.delay
+    Start-Sleep $config.runtimeProperties.delay
 
 
 } while ($true)
