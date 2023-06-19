@@ -50,14 +50,16 @@ function removeDrive {
     param (
         [Parameter(Mandatory=$true,Position=0)]$Letter
     )
+    subst.exe "${Letter}:" /D
+    Remove-Item -Path "$env:temp\SFTPMount\$Letter"
     if ($null -eq (Get-ChildItem -Path "${Letter}:")){
-        subst.exe "${Letter}:" /D
+        Write-Output 'lala'
     } else {
-        throw [System.IO.IOException] 'Drive not empty'
+        # throw [System.IO.IOException] 'Drive not empty'
     }
 }
 
-function removeSymlink {
+function removeJunction {
     param (
         [Parameter(Mandatory=$true,Position=0)]$Path
     )
@@ -86,6 +88,23 @@ do {
         }
         $canConnect = $true
 
+        foreach ($cache in $config.cache){
+            if ($cache.enabled){
+                $correspondingMount = getCorrespodingMounter -Name $cache.name -Mounters $config.mounts # gets the mounter where the name (id) corresponds
+                if ($correspondingMount.enabled){ # only executes if the corresponding mounter is set to be enabled
+                    $mountLocation = $correspondingMount.mountLocation + $cache.mountLocation
+                    Write-Output $mountLocation
+
+                    $name = $cache.displayName
+                    removeJunction -Path "$mountLocation\$name"
+                    $cache.mounted = $false
+                }
+            }
+        }
+        foreach ($drive in (Get-ChildItem -Path "$env:temp\SFTPMount")){
+            removeDrive -Letter $drive.Name
+        }
+
         foreach ($mounter in $config.mounts){ 
             # $mounter is the current object
             if ($mounter.enabled -and -not $mounter.running){ # checks properties before working
@@ -108,22 +127,7 @@ do {
             }
         }
 
-        foreach ($cache in $config.cache){
-            if ($cache.enabled){
-                $correspondingMount = getCorrespodingMounter -Name $cache.name -Mounters $config.mounts # gets the mounter where the name (id) corresponds
-                if ($correspondingMount.enabled){ # only executes if the corresponding mounter is set to be enabled
-                    if ($cache.cacheLocation -eq ''){
-                        $cacheLocation = "$dataDir\offline_cache" + '\' + $cache.name
-                    } else {
-                        $cacheLocation = $cache.cacheLocation + '\' + $cache.name # allows for custom cache space
-                    }
-                    $mountLocation = $correspondingMount.mountLocation
-                    Write-Output $cacheLocation
-                    Write-Output $mountLocation
-                }
-                # SYNCING CODE
-            }
-        }
+        
     } else {
         $canConnect = $false
         Write-Output 'No connection'
@@ -168,6 +172,7 @@ do {
                         $name = $cache.displayName
                         New-Item -ItemType Junction -Path "$mountLocation\$name" -Value $cacheLocation
                     }
+                    $cache.mounted = $true
                 }
             }
         }
