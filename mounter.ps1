@@ -46,6 +46,22 @@ function removeDrive {
     }
 }
 
+function removeSymlink {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Path
+    )
+    (Get-Item -Path $Path).Delete()
+}
+
+function getCorrespodingMounter {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Name,
+        [Parameter(Mandatory=$true,Position=1)]$Mounters
+    )
+    # finds from all the mounters the one where the name coincides with the search one ($Name)
+    return $Mounters | Where-Object {$_.name -eq $Name}
+}
+
 do {
     $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON
     
