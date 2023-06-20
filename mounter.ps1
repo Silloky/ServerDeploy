@@ -114,15 +114,17 @@ do {
                         [Parameter(Mandatory=$true,Position=1)]$binDir
                     )
                     $arguments = ""
-                    $arguments += "mount $($mounter.rcloneProfile):/$($mounter.serverLoc) $($mounter.mountLocation)"
+                    $arguments += "mount $($mounter.rcloneProfile):/$($mounter.serverLoc)"
                     if ($mounter.mountType -eq "drive") {
-                        $arguments += " --volname $($mounter.displayName)"
+                        $arguments += " $($mounter.mountLocation) --volname $($mounter.displayName)"
+                    } elseif ($mounter.mountType -eq "folder"){
+                        $arguments += " `"$($mounter.mountLocation)\$($mounter.displayName)`""
                     }
                     # Creates the rclone mount string according to $mounter properties
                     $arguments += " --vfs-cache-mode $($mounter.vfsCacheMode)"
                     $processPid = (Start-Process -FilePath "$binDir\rclone.exe" -ArgumentList $arguments -WindowStyle Hidden -PassThru).Id
                     return $processPid
-                } -ArgumentList $mounter,$binDir | Wait-Job | Receive-Job # Receives the job result : in this case, the process PID
+                } -ArgumentList $mounter,$binDir | Wait-Job | Receive-Job -Keep # Receives the job result : in this case, the process PID
                 $mounter.running = $true
             }
         }
