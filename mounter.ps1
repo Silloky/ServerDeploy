@@ -1,4 +1,4 @@
-﻿param (
+param (
     [Parameter(Mandatory=$true,Position=0)]$dataDir,
     [Parameter(Mandatory=$true,Position=1)]$binDir
 )
@@ -72,7 +72,7 @@ function getCorrespodingMounter {
         [Parameter(Mandatory=$true,Position=1)]$Mounters
     )
     # finds from all the mounters the one where the name coincides with the search one ($Name)
-    return $Mounters | Where-Object {$_.name -eq $Name}
+    return $Mounters | Where-Object {$_.name -eq $Name.Substring(0,$Name.IndexOf('.'))}
 }
 
 do {
