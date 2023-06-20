@@ -82,7 +82,7 @@ do {
     #     $cachedFolder.mountLocation = "test"
     # }
 
-    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50023).Wait(500)){ # Tests connection to SFTP port
+    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50007).Wait(500)){ # Tests connection to SFTP port
         if ($canConnect -eq $false){
             Write-Output 'Connection re-established' # Prints to signal connection reestablishment
         }
