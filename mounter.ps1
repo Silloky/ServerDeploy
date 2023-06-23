@@ -123,6 +123,25 @@ function readWay {
     }
 }
 
+function checkManifest {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Manifest,
+        [Parameter(Mandatory=$true,Position=1)]$FileObject
+    )
+
+    $relativePath = $FileObject.Directory + "\" + $FileObject.Name
+
+    $results = $Manifest | Where-Object {
+        $_.Directory + "\" + $_.Name -eq $relativePath
+    }
+
+    if ($null -ne $results){
+        return $true
+    } else {
+        return $false
+    }
+}
+
 function sync {
     param (
         [Parameter(Mandatory=$true,Position=0)]$PathA,
