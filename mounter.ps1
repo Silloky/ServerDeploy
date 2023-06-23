@@ -75,6 +75,75 @@ function getCorrespodingMounter {
     return $Mounters | Where-Object {$_.name -eq $Name.Substring(0,$Name.IndexOf('.'))}
 }
 
+function getChildren {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$Path  
+    )
+    return (Get-ChildItem -Path $Path -Recurse) | 
+        Select-Object Name,Length,@{
+            n='Directory';
+            e={
+                try {
+                    $dir = ($_.Directory).ToString().Replace($Path,'')
+                    if ($dir -eq ''){
+                        throw
+                    }
+                }
+                catch {
+                    $dir = '\'
+                }
+                finally {
+                    $dir
+                }
+            }
+        },IsReadOnly,CreationTimeUtc,LastWriteTimeUtc,Attributes,@{
+            n='Hash';
+            e={$_ | Get-FileHash | Select-Object -ExpandProperty 'Hash'}
+        } -ExcludeProperty 'Mode'
+}
+
+function readWay {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$SideIndicator,
+        [Parameter(Mandatory=$true,Position=1)]$RelativePath,
+        [Parameter(Mandatory=$true,Position=2)]$ReferencePath,
+        [Parameter(Mandatory=$true,Position=3)]$DifferencePath
+    )
+
+    if ($SideIndicator -eq "<="){
+        return @{
+            "origin" = "$ReferencePath\$RelativePath";
+            "destination" = "$DifferencePath\$RelativePath"
+        }
+    } elseif ($SideIndicator -eq "=>"){
+        return @{
+            "origin" = "$DifferencePath\$RelativePath";
+            "destination" = "$ReferencePath\$RelativePath"
+        }
+    }
+}
+
+function sync {
+    param (
+        [Parameter(Mandatory=$true,Position=0)]$PathA,
+        [Parameter(Mandatory=$true,Position=1)]$PathB,
+        [Parameter(Mandatory=$true,Position=2)]$SyncData
+    )
+    $aContents = getChildren -Path $PathA
+    $bContents = getChildren -Path $PathB
+    $differences = Compare-Object -ReferenceObject $aContents -DifferenceObject $bContents -Property Name -PassThru
+
+    foreach ($dir in (Where-Object -InputObject $differences -Property Attributes -Value Directory -EQ)){
+        $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
+        Copy-Item -Path $directions.origin -Destination $directions.destination
+    }
+
+    foreach ($file in (Where-Object -InputObject $differences -Property Attributes -Value Directory -NE)){
+        $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
+        Copy-Item -Path $directions.origin -Destination $directions.destination
+    }
+}
+
 do {
     $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON # Gets data from `config.json`
     
