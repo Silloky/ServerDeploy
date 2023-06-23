@@ -1,4 +1,4 @@
-param (
+﻿param (
     [Parameter(Mandatory=$true,Position=0)]$dataDir,
     [Parameter(Mandatory=$true,Position=1)]$binDir
 )
@@ -148,19 +148,34 @@ function sync {
         [Parameter(Mandatory=$true,Position=1)]$PathB,
         [Parameter(Mandatory=$true,Position=2)]$SyncData
     )
+    
     $aContents = getChildren -Path $PathA
     $bContents = getChildren -Path $PathB
-    $differences = Compare-Object -ReferenceObject $aContents -DifferenceObject $bContents -Property Name -PassThru
+    $manifest = Get-Content -Path "$PathA\manifest.json" -Encoding UTF8 | ConvertFrom-Json
 
+    $differences = Compare-Object -ReferenceObject $aContents -DifferenceObject $bContents -Property Name -PassThru
     foreach ($dir in (Where-Object -InputObject $differences -Property Attributes -Value Directory -EQ)){
         $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
-        Copy-Item -Path $directions.origin -Destination $directions.destination
+        if (checkManifest -Manifest $manifest -FileObject $dir){
+            Copy-Item -Path $directions.origin -Destination $directions.destination
+        } else {
+            Remove-Item -Path $directions.origin -Recurse
+        }
+        
     }
-
     foreach ($file in (Where-Object -InputObject $differences -Property Attributes -Value Directory -NE)){
         $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
-        Copy-Item -Path $directions.origin -Destination $directions.destination
+        if (checkManifest -Manifest $manifest -FileObject $file){
+            Copy-Item -Path $directions.origin -Destination $directions.destination
+        } else {
+            try {
+                Remove-Item -Path $directions.origin
+            }
+            finally {}
+        }
     }
+
+
 }
 
 do {
