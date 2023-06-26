@@ -137,10 +137,18 @@ function checkManifest {
         $_.Directory + "\" + $_.Name -eq $relativePath
     }
 
-    if ($null -ne $results){
-        return $true
+    if ($false -eq $CheckHash){
+        if ($null -ne $results){
+            return $true
+        } else {
+            return $false
+        }
     } else {
-        return $false
+        if ($null -ne $results){
+            return ($results.Hash -eq $FileObject.Hash)
+        } else {
+            return $null
+        }
     }
 }
 
