@@ -1,4 +1,4 @@
-﻿param (
+param (
     [Parameter(Mandatory=$true,Position=0)]$dataDir,
     [Parameter(Mandatory=$true,Position=1)]$binDir
 )
@@ -84,10 +84,12 @@ function getChildren {
             n='Directory';
             e={
                 try {
-                    $dir = ($_.Directory).ToString().Replace($Path,'')
+                    $dir = ($_.FullName).ToString().Replace($Path,'')
                     if ($dir -eq ''){
                         throw
                     }
+                }
+                    
                 }
                 catch {
                     $dir = '\'
