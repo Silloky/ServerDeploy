@@ -128,7 +128,8 @@ function readWay {
 function checkManifest {
     param (
         [Parameter(Mandatory=$true,Position=0)]$Manifest,
-        [Parameter(Mandatory=$true,Position=1)]$FileObject
+        [Parameter(Mandatory=$true,Position=1)]$FileObject,
+        [Parameter(Mandatory=$false,Position=2)][switch]$CheckHash
     )
 
     $relativePath = $FileObject.Directory + "\" + $FileObject.Name
