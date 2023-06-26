@@ -84,7 +84,7 @@ function getChildren {
             n='Directory';
             e={
                 try {
-                    $dir = ($_.FullName).ToString().Replace($Path,'')
+                    $dir = '\' + (Split-Path -Path $_.FullName -Parent).ToString().Replace($Path,'')
                     if ($dir -eq ''){
                         throw
                     }
