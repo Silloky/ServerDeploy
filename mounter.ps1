@@ -156,33 +156,34 @@ function checkManifest {
 function sync {
     param (
         [Parameter(Mandatory=$true,Position=0)]$PathA,
-        [Parameter(Mandatory=$true,Position=1)]$PathB,
-        [Parameter(Mandatory=$true,Position=2)]$SyncData
+        [Parameter(Mandatory=$true,Position=1)]$PathB
     )
-    
+
     $aContents = getChildren -Path $PathA
     $bContents = getChildren -Path $PathB
     $manifest = Get-Content -Path "$PathA\manifest.json" -Encoding UTF8 | ConvertFrom-Json
 
-    $differences = Compare-Object -ReferenceObject $aContents -DifferenceObject $bContents -Property Name -PassThru
-    foreach ($dir in (Where-Object -InputObject $differences -Property Attributes -Value Directory -EQ)){
-        $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
+    $newElements = Compare-Object -ReferenceObject $aContents -DifferenceObject $bContents -Property Name -PassThru
+    foreach ($dir in ($newElements | Where-Object -Property Attributes -Value Directory -EQ)){
+        $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath "$($dir.Directory)\$($dir.Name)" -ReferencePath $PathA -DifferencePath $PathB
+        $directions
         if (checkManifest -Manifest $manifest -FileObject $dir){
-            Copy-Item -Path $directions.origin -Destination $directions.destination
-        } else {
             Remove-Item -Path $directions.origin -Recurse
+        } else {
+            Copy-Item -Path $directions.origin -Destination $directions.destination
         }
         
     }
-    foreach ($file in (Where-Object -InputObject $differences -Property Attributes -Value Directory -NE)){
-        $directions = readWay -SideIndicator $dir.SideIndicator -RelativePath $dir.Directory -ReferencePath $PathA -DifferencePath $PathB
+    foreach ($file in ($newElements | Where-Object -Property Attributes -Value Directory -NE)){
+        $directions = readWay -SideIndicator $file.SideIndicator -RelativePath "$($file.Directory)\$($file.Name)" -ReferencePath $PathA -DifferencePath $PathB
+        $directions
         if (checkManifest -Manifest $manifest -FileObject $file){
-            Copy-Item -Path $directions.origin -Destination $directions.destination
-        } else {
             try {
                 Remove-Item -Path $directions.origin
             }
             finally {}
+        } else {
+            Copy-Item -Path $directions.origin -Destination $directions.destination
         }
     }
 
