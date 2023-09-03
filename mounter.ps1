@@ -189,30 +189,42 @@ function sync {
 
 
 }
+$currentlyMountedRemotes = [System.Collections.ArrayList]@()
+$currentlyMountedCache = [System.Collections.ArrayList]@()
+$rclonePIDS = @{}
 
 do {
+
     $config = Get-Content -Path "$dataDir\config.json" | ConvertFrom-JSON # Gets data from `config.json`
     
     # foreach ($cachedFolder in $config.cache) {
     #     $cachedFolder.mountLocation = "test"
     # }
 
-    if ((New-Object System.Net.Sockets.TcpClient).ConnectAsync("grigwood.ml", 50007).Wait(500)){ # Tests connection to SFTP port
-        if ($canConnect -eq $false){
-            Write-Output 'Connection re-established' # Prints to signal connection reestablishment
+    try {
+        if ((New-Object System.Net.Sockets.TCPClient -ArgumentList $config.settings.remote,$config.settings.port).Connected -eq $true){
+            if ($canConnect -eq $false){
+                Write-Output 'Connection re-established' # Prints to signal connection reestablishment
+            }
+            $canConnect = $true
+        } else {
+            $canConnect = $false
         }
-        $canConnect = $true
+    }
+    catch {
+        $canConnect = $false
+    }
 
+    if ($canConnect){ # Tests connection to SFTP port
+        
         foreach ($cache in $config.cache){
-            if ($cache.enabled){
+            if ($cache.enabled -and ($cache.name -in $currentlyMountedCache)){
                 $correspondingMount = getCorrespodingMounter -Name $cache.name -Mounters $config.mounts # gets the mounter where the name (id) corresponds
                 if ($correspondingMount.enabled){ # only executes if the corresponding mounter is set to be enabled
-                    $mountLocation = $correspondingMount.mountLocation + $cache.mountLocation
+                    $mountLocation = $correspondingMount.mountLocation + $correspondingMount.displayName + $cache.relMountLocation + $cache.displayName
                     Write-Output $mountLocation
-
-                    $name = $cache.displayName
-                    removeJunction -Path "$mountLocation\$name"
-                    $cache.mounted = $false
+                    removeJunction -Path "$mountLocation"
+                    $currentlyMountedCache.Remove($cache.name)
                 }
             }
         }
@@ -222,8 +234,8 @@ do {
 
         foreach ($mounter in $config.mounts){ 
             # $mounter is the current object
-            if ($mounter.enabled -and -not $mounter.running){ # checks properties before working
-                $mounter.processPID = Start-Job -Name $mounter.serverLoc -ScriptBlock { # Starts a background job and keeps the following process' PID
+            if ($mounter.enabled -and ($mounter.name -notin $currentlyMountedRemotes)){ # checks properties before working
+                $rclonePIDS[$mounter.name] = Start-Job -Name $mounter.serverLoc -ScriptBlock { # Starts a background job and keeps the following process' PID
                     param (
                         [Parameter(Mandatory=$true,Position=0)]$mounter,
                         [Parameter(Mandatory=$true,Position=1)]$binDir
@@ -240,7 +252,7 @@ do {
                     $processPid = (Start-Process -FilePath "$binDir\rclone.exe" -ArgumentList $arguments -WindowStyle Hidden -PassThru).Id
                     return $processPid
                 } -ArgumentList $mounter,$binDir | Wait-Job | Receive-Job -Keep # Receives the job result : in this case, the process PID
-                $mounter.running = $true
+                $currentlyMountedRemotes += $mounter.name
             }
         }
 
@@ -250,9 +262,10 @@ do {
         Write-Output 'No connection'
 
         foreach ($mounter in $config.mounts) {
-            if ($mounter.mounted){
-                Stop-Process -Id $mounter.processPID
-                $mounter.mounted = $false
+            if ($mounter.name -in $currentlyMountedRemotes){
+                Stop-Process -Id $rclonePIDS[$mounter.name]
+                $currentlyMountedRemotes.Remove($mounter.name)
+                $rclonePIDS.Remove($mounter.name)
             }
         }
 
@@ -265,7 +278,7 @@ do {
                     } else {
                         $cacheLocation = $cache.cacheLocation + '\' + $cache.name
                     }
-                    $mountLocation = $correspondingMount.mountLocation + $cache.mountLocation
+                    $mountLocation = $correspondingMount.mountLocation + $correspondingMount.displayName + $cache.relMountLocation + $cache.displayName
                     if ($mountLocation.Length -eq 3){
                         $driveRoot = $true
                     } else {
@@ -287,9 +300,9 @@ do {
                     if (-not $driveRoot){
                         createDirectories -FinalPath $mountLocation # creates the necessary directories to where the the cache should be mounted
                         $name = $cache.displayName
-                        New-Item -ItemType Junction -Path "$mountLocation\$name" -Value $cacheLocation
+                        New-Item -ItemType Junction -Path "$mountLocation" -Value $cacheLocation
                     }
-                    $cache.mounted = $true
+                    $currentlyMountedRemotes.Add($mounter.name)
                 }
             }
         }
@@ -298,7 +311,7 @@ do {
 
 
 
-    Start-Sleep $config.runtimeProperties.delay
+    Start-Sleep $config.settings.delay
 
 
 } while ($true)
